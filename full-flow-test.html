@@ -1,0 +1,196 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1, user-scalable=no, viewport-fit=cover">
+<title>Full Flow Test — Jiyana's Mehendi Studio</title>
+<link rel="stylesheet" href="css/style.css">
+<link rel="stylesheet" href="css/text-stencil.css">
+<link rel="stylesheet" href="css/dry-scrape.css">
+<link rel="stylesheet" href="css/full-flow.css">
+</head>
+<body>
+
+  <!-- Isolated end-to-end test harness. Not linked from index.html and
+       does not touch index.html or main.js. This is the first place
+       all three previously-separate, individually-approved systems
+       are wired together into one real sequence:
+
+         pick design -> trace guide (M1 engine) -> Done -> dry
+         (M2 hairdryer) -> scrape (M2 reveal) -> finished stain
+
+       Every piece below (the cone/ink engine, the guide layer, the
+       dry+scrape mechanic) is the exact same code already approved in
+       stencil-test.js / text-stencil-test.js / peacock-stencil-test.js
+       / dry-scrape-test.js — this file's own job is just the sequencing
+       between them, plus the one new bit needed to close the loop:
+       detecting when scraping is "done" (the old M2 test let you
+       scrape forever with no end state).
+
+       Also now includes the first real toolbar (Cone/Toothpick/Dotting
+       tool + Undo/Clear/Done) — the toolbar_gameplay_v1.png reference
+       asset had never actually been sliced up or wired into any file
+       before this. -->
+
+  <div id="app">
+
+    <div id="picker">
+      <!-- Running coin total, visible on the home/picker screen so it
+           reads as something that's accumulating across designs. Coins
+           aren't spendable anywhere yet — this is just the counter. -->
+      <div id="coinCounter">
+        <img src="assets/icon_coin.png" alt="">
+        <span id="coinCounterAmount">0</span>
+      </div>
+      <div class="pickerTitle">Choose a design to trace</div>
+      <div id="pickerCards"></div>
+    </div>
+
+    <div id="stageWrap">
+      <div id="stage">
+        <div id="artboard">
+          <img id="palm" src="assets/hero_palm.png" alt="">
+
+          <!-- Guide: faint, non-fading while tracing. Cleared the
+               instant Done is pressed so nothing can show through the
+               finished piece underneath. -->
+          <canvas id="stencilCanvas"></canvas>
+
+          <!-- Reveal stack, same order/roles as the dry-scrape test:
+               stain (bottom) -> dried paste (scraped away) -> wet ink
+               (visible while tracing, fades out once drying starts). -->
+          <canvas id="stainCanvas"></canvas>
+          <canvas id="driedCanvas"></canvas>
+          <canvas id="wetCanvas"></canvas>
+
+          <!-- Holds the single "staged" Dot/Circle-stamp/Paisley-stamp
+               shape while it's being adjusted — placed on tap, not yet
+               painted into the henna. JS creates/removes its one child
+               (.stampWrap) as shapes are placed and baked; nothing lives
+               here between placements. Sits above wetCanvas so the
+               staged shape previews on top of already-committed ink. -->
+          <div id="stampStage"></div>
+
+          <!-- toolAnchor is translated to the drawing point each frame,
+               same as coneAnchor always was — holds the 3 tools whose
+               real-world size/shape makes sense to show at full size
+               resting at the fingertip (cone/toothpick/dotting tool).
+               JS toggles which one is visible based on the selected
+               tool; only one is ever shown at a time. -->
+          <div id="toolAnchor">
+            <img id="cone" src="assets/mehendi_cone.png" alt="">
+            <img id="toothpick" src="assets/icon_toothpick.png" alt="">
+            <img id="dotTool" src="assets/icon_dotting.png" alt="">
+          </div>
+
+          <!-- actionCursor is the on-canvas indicator for every OTHER
+               tool (ruler, curve, circle stamp, paisley stamp, eraser).
+               These tools' toolbar icons are large/detailed enough that
+               showing them full-size at the working point would block
+               the player's view of exactly what they're doing — so
+               instead of the real icon, this is just a small unobtrusive
+               glow marking where the action will happen, the same idea
+               as #scrapeGlow below. Its "selected" state lives on the
+               toolbar button itself (.tool-select.active), not here. -->
+          <div id="actionCursor">
+            <div id="actionCursorGlow"></div>
+          </div>
+
+          <div id="scrapeCursor">
+            <div id="scrapeGlow"></div>
+            <img id="scraperTool" src="assets/scraper_tool.png" alt="">
+          </div>
+
+          <div id="dryerRig">
+            <img id="dryerIcon" src="assets/hairdryer.png" alt="">
+            <div id="dryerPuffs">
+              <span class="puff"></span>
+              <span class="puff"></span>
+              <span class="puff"></span>
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <div id="hint" class="hint"></div>
+
+    <!-- The real toolbar, built for the first time here — the reference
+         asset (toolbar_gameplay_v1.png) was never sliced up or wired
+         into any earlier test file. Cone/Toothpick/Dotting tool are a
+         toggle group (exactly one active at a time); Undo/Clear/Done
+         are actions. Only shown during the 'tracing' phase. -->
+    <div id="toolbar">
+      <button class="toolBtn tool-select active" data-tool="cone" title="Cone" type="button">
+        <img src="assets/icon_cone.png" alt="Cone">
+      </button>
+      <button class="toolBtn tool-select iconOnly" data-tool="toothpick" title="Toothpick" type="button">
+        <img src="assets/icon_toothpick.png" alt="Toothpick">
+      </button>
+      <button class="toolBtn tool-select iconOnly" data-tool="dot" title="Dotting Tool" type="button">
+        <img src="assets/icon_dotting.png" alt="Dotting Tool">
+      </button>
+      <button class="toolBtn tool-select iconOnly" data-tool="ruler" title="Ruler" type="button">
+        <img src="assets/icon_ruler.png" alt="Ruler">
+      </button>
+      <button class="toolBtn tool-select iconOnly" data-tool="curve" title="Curve Guide" type="button">
+        <img src="assets/icon_curve.png" alt="Curve Guide">
+      </button>
+      <button class="toolBtn tool-select iconOnly" data-tool="circle" title="Circle Stamp" type="button">
+        <img src="assets/icon_circle_stamp.png" alt="Circle Stamp">
+      </button>
+      <button class="toolBtn tool-select" data-tool="paisley" title="Paisley Stamp" type="button">
+        <img src="assets/icon_paisley.png" alt="Paisley Stamp">
+      </button>
+      <button class="toolBtn tool-select iconOnly" data-tool="eraser" title="Eraser" type="button">
+        <img src="assets/icon_eraser.png" alt="Eraser">
+      </button>
+      <div class="toolbarDivider"></div>
+      <button id="undoBtn" class="toolBtn" title="Undo" type="button" disabled>
+        <img src="assets/icon_undo.png" alt="Undo">
+      </button>
+      <button id="iconClearBtn" class="toolBtn" title="Clear" type="button">
+        <img src="assets/icon_clear.png" alt="Clear">
+      </button>
+      <button id="iconDoneBtn" class="toolBtn" title="Done" type="button">
+        <img src="assets/icon_done.png" alt="Done">
+      </button>
+    </div>
+
+    <div id="controls">
+      <button id="changeBtn" type="button">Change Design</button>
+    </div>
+
+    <!-- Result screen: shown once scraping finishes (phase 'done').
+         Stars reflect how much of the guide's outline actually got
+         traced (generous thresholds — this rewards effort, not
+         precision); coins are a fixed per-design amount, harder designs
+         pay more. Replaces the old bare "Start Again" — Next Design
+         does the same "back to picker" job, just placed here and named
+         for what it actually does now that there's a real result to
+         show first. -->
+    <div id="resultPanel" class="hidden">
+      <div id="resultStars">
+        <img class="resultStar" src="assets/icon_star.png" alt="Star">
+        <img class="resultStar" src="assets/icon_star.png" alt="Star">
+        <img class="resultStar" src="assets/icon_star.png" alt="Star">
+      </div>
+      <div id="resultCoins">
+        <img src="assets/icon_coin.png" alt="">
+        <span id="resultCoinAmount">+0</span>
+      </div>
+      <button id="nextDesignBtn" type="button">Next Design</button>
+    </div>
+  </div>
+
+  <!-- Hidden source images for the 6 designs proven out so far. -->
+  <img id="src-flower" src="assets/flower_stencil.png" alt="" hidden>
+  <img id="src-peacock_easy" src="assets/peacock_easy.png" alt="" hidden>
+  <img id="src-peacock_advanced" src="assets/peacock_advanced.png" alt="" hidden>
+  <img id="src-dark_vibes" src="assets/text_dark_vibes.png" alt="" hidden>
+  <img id="src-jiyana" src="assets/text_jiyana.png" alt="" hidden>
+  <img id="src-jash" src="assets/text_jash.png" alt="" hidden>
+
+  <script src="js/full-flow-test.js"></script>
+</body>
+</html>

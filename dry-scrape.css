@@ -1,0 +1,254 @@
+/* =========================================================
+   Jiyana's Mehendi Studio — M2 test harness styling
+   Purpose: everything specific to the isolated dry + scrape
+   test page. Kept out of style.css on purpose so the real
+   game's stylesheet stays untouched by an experimental
+   milestone that may still change shape.
+   ========================================================= */
+
+:root {
+  --dry-accent: #a9713f;
+  --dry-accent-dark: #7a5330;
+  --stain-light: #c4783a;
+}
+
+/* ---- Layer canvases (stacked in DOM order: stain, dried, wet) ---- */
+#stainCanvas,
+#driedCanvas,
+#wetCanvas {
+  position: absolute;
+  inset: 0;
+  width: 100%;
+  height: 100%;
+  pointer-events: none;
+}
+
+#wetCanvas {
+  transition: opacity 900ms ease;
+}
+
+#wetCanvas.fade-out {
+  opacity: 0;
+}
+
+/* ---- Scrape tool cursor ----
+   #scrapeCursor is a zero-size ANCHOR, translated to the pointer position
+   every frame (same pattern as #coneAnchor in main.js). #scrapeGlow and
+   #scraperTool are its children and both stay locked to that same point;
+   the tool image additionally rotates around its own tip (measured from
+   the source PNG) to face the direction of the drag. */
+#scrapeCursor {
+  position: absolute;
+  left: 0;
+  top: 0;
+  width: 0;
+  height: 0;
+  pointer-events: none;
+  opacity: 0;
+  transition: opacity 220ms ease;
+}
+
+#scrapeCursor.visible {
+  opacity: 0.8;
+}
+
+#scrapeCursor.scraping {
+  opacity: 1;
+}
+
+#scrapeGlow {
+  position: absolute;
+  left: 0;
+  top: 0;
+  width: 52px;
+  height: 52px;
+  margin-left: -26px;
+  margin-top: -26px;
+  border-radius: 50%;
+  background: radial-gradient(circle, rgba(214, 150, 96, 0.55) 0%, rgba(214, 150, 96, 0.22) 55%, rgba(214, 150, 96, 0) 78%);
+  transition: transform 150ms ease, opacity 150ms ease;
+  opacity: 0.6;
+}
+
+#scrapeCursor.scraping #scrapeGlow {
+  opacity: 1;
+  transform: scale(1.15);
+}
+
+#scraperTool {
+  position: absolute;
+  -webkit-user-drag: none;
+  user-drag: none;
+  filter: drop-shadow(0 4px 6px rgba(60, 60, 60, 0.3));
+}
+
+.flake {
+  --fx: 0px;
+  --fy: 0px;
+  --fr: 0deg;
+  position: absolute;
+  left: 0;
+  top: 0;
+  width: 5px;
+  height: 3px;
+  margin: -1.5px 0 0 -2.5px;
+  border-radius: 1px;
+  background: rgba(84, 54, 28, 0.55);
+  animation: flakeFly 480ms ease-out forwards;
+}
+
+@keyframes flakeFly {
+  0% { opacity: 0.9; transform: translate(0, 0) rotate(0deg); }
+  100% { opacity: 0; transform: translate(var(--fx), var(--fy)) rotate(var(--fr)); }
+}
+
+/* ---- Hairdryer rig ----
+   Anchored at the artboard's origin (left:0; top:0), same convention as
+   #scrapeCursor — js/main.js moves it by setting its own transform
+   (translate to the finger/mouse position, then translate(-50%,-50%) to
+   center the icon on that point) every pointer move during the 'drying'
+   phase, so it follows her hand around exactly like the scraper tool
+   does one phase later. Only opacity is a CSS transition now (matching
+   scrapeCursor's own fade-in); position updates are set directly by JS
+   every frame, so a CSS transform-transition would only fight that. */
+#dryerRig {
+  position: absolute;
+  left: 0;
+  top: 0;
+  width: 44%;
+  max-width: 230px;
+  opacity: 0;
+  pointer-events: none;
+  transition: opacity 220ms ease;
+  filter: drop-shadow(0 8px 12px rgba(80, 50, 15, 0.22));
+}
+
+#dryerRig.active {
+  opacity: 1;
+}
+
+#dryerIcon {
+  display: block;
+  width: 100%;
+  height: auto;
+  -webkit-user-drag: none;
+  user-drag: none;
+}
+
+/* The rig scale-transition (above) is a one-shot ease; the shake below
+   layers on top of it and runs for the full drying duration, per the
+   "keep it visible and animated the whole time" note. Now that drying
+   can run indefinitely (player taps to move on, no fixed timer), the
+   shake needed to be a much more obvious "buzzing tool" motion — a
+   ±2.5deg wobble read as basically static at a glance over a long,
+   unhurried wait, even though it was technically animating the whole
+   time. Combining a wider rotation with a tiny position jitter reads
+   unmistakably as "on and blowing" instead. */
+#dryerRig.active #dryerIcon {
+  animation: dryerShake 220ms ease-in-out infinite;
+}
+
+@keyframes dryerShake {
+  0%, 100% { transform: rotate(-7deg) translate(0, 0); }
+  25% { transform: rotate(4deg) translate(1px, -1px); }
+  50% { transform: rotate(7deg) translate(0, 0); }
+  75% { transform: rotate(-4deg) translate(-1px, 1px); }
+}
+
+/* Puffs sit at the nozzle's measured position within hairdryer.png
+   (≈4.5% from the left, ≈23% from the top of the cropped asset) and
+   drift left/outward, matching the nozzle's own leftward-facing angle. */
+#dryerPuffs {
+  position: absolute;
+  left: 4.5%;
+  top: 23%;
+  width: 0;
+  height: 0;
+}
+
+.puff {
+  position: absolute;
+  left: 0;
+  top: 0;
+  width: 13px;
+  height: 13px;
+  margin: -6.5px 0 0 -6.5px;
+  border-radius: 50%;
+  background: radial-gradient(circle, rgba(255, 255, 255, 0.95) 0%, rgba(255, 255, 255, 0.4) 65%, rgba(255, 255, 255, 0) 100%);
+  opacity: 0;
+}
+
+#dryerRig.active .puff {
+  animation: puffDrift 700ms ease-out infinite;
+}
+
+#dryerRig.active .puff:nth-child(2) {
+  animation-delay: 180ms;
+}
+
+#dryerRig.active .puff:nth-child(3) {
+  animation-delay: 360ms;
+}
+
+@keyframes puffDrift {
+  0% { opacity: 0; transform: translate(0, 0) scale(0.6); }
+  30% { opacity: 1; }
+  100% { opacity: 0; transform: translate(-42px, 8px) scale(2); }
+}
+
+/* ---- Hint text ---- */
+.hint {
+  flex: 0 0 auto;
+  text-align: center;
+  min-height: 1.4em;
+  padding: 4px 20px 2px;
+  font-size: clamp(13px, 3vw, 15px);
+  font-weight: 600;
+  color: var(--dry-accent-dark);
+  opacity: 0;
+  transition: opacity 260ms ease;
+}
+
+.hint.visible {
+  opacity: 1;
+}
+
+/* ---- Test-harness controls ---- */
+#controls {
+  flex: 0 0 auto;
+  display: flex;
+  justify-content: center;
+  gap: 12px;
+  padding: 6px 20px calc(16px + env(safe-area-inset-bottom));
+}
+
+#controls button {
+  font-family: inherit;
+  font-size: 14px;
+  font-weight: 700;
+  border: none;
+  border-radius: 999px;
+  padding: 12px 22px;
+  cursor: pointer;
+  color: #fff;
+  background: var(--dry-accent);
+  box-shadow: 0 6px 14px rgba(122, 83, 48, 0.28);
+  transition: transform 120ms ease, opacity 200ms ease, box-shadow 120ms ease;
+}
+
+#controls button:active {
+  transform: scale(0.96);
+  box-shadow: 0 3px 8px rgba(122, 83, 48, 0.28);
+}
+
+#controls button:disabled {
+  opacity: 0.4;
+  cursor: default;
+  box-shadow: none;
+}
+
+#resetBtn {
+  background: transparent;
+  color: var(--dry-accent-dark);
+  box-shadow: inset 0 0 0 2px rgba(122, 83, 48, 0.35);
+}

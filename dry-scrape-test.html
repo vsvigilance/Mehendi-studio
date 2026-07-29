@@ -1,0 +1,66 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1, user-scalable=no, viewport-fit=cover">
+<title>Dry + Scrape Test — Jiyana's Mehendi Studio</title>
+<link rel="stylesheet" href="css/style.css">
+<link rel="stylesheet" href="css/dry-scrape.css">
+</head>
+<body>
+
+  <!-- Isolated M2 test harness. Not linked from the real game (index.html)
+       and does not touch index.html/main.js at all — a single hardcoded
+       test line, run through dry -> scrape, so the mechanic itself can be
+       judged before it's wired into the real Done button. -->
+
+  <div id="app">
+    <div id="stageWrap">
+      <div id="stage">
+        <div id="artboard">
+          <img id="palm" src="assets/hero_palm.png" alt="">
+
+          <!-- Bottom: the revealed stain, light base + dose-driven rich tone -->
+          <canvas id="stainCanvas"></canvas>
+
+          <!-- Middle: dried henna, scraped away to reveal the stain beneath -->
+          <canvas id="driedCanvas"></canvas>
+
+          <!-- Top (temporary): the wet-look stroke, cross-fades out on drying -->
+          <canvas id="wetCanvas"></canvas>
+
+          <!-- Follows the finger, hidden until first shown. scrapeCursor is
+               the anchor (translated to the pointer position); the glow
+               and tool image are its children, so both stay locked to the
+               same point while the tool rotates around its own tip. -->
+          <div id="scrapeCursor">
+            <div id="scrapeGlow"></div>
+            <img id="scraperTool" src="assets/scraper_tool.png" alt="">
+          </div>
+
+          <!-- Real hairdryer asset, shown only during the dry transition.
+               Puffs are separate divs, positioned near the nozzle
+               (measured from the source PNG), not baked into the image. -->
+          <div id="dryerRig">
+            <img id="dryerIcon" src="assets/hairdryer.png" alt="">
+            <div id="dryerPuffs">
+              <span class="puff"></span>
+              <span class="puff"></span>
+              <span class="puff"></span>
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <div id="hint" class="hint"></div>
+
+    <div id="controls">
+      <button id="startDryBtn" type="button">Start Drying</button>
+      <button id="resetBtn" type="button">Reset Test</button>
+    </div>
+  </div>
+
+  <script src="js/dry-scrape-test.js"></script>
+</body>
+</html>

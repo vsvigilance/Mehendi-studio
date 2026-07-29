@@ -1,0 +1,239 @@
+/* =========================================================
+   Jiyana's Mehendi Studio — decoration test harness styling
+   Purpose: only what's new for the decoration tray + placed
+   stickers. #app/#stageWrap/#stage/#artboard/#palm base layout
+   comes from style.css unchanged; the tool-button look
+   (.toolBtn/.iconOnly) is reused from full-flow.css unchanged
+   too — this file only adds what neither already has.
+   ========================================================= */
+
+#finishedCanvas {
+  position: absolute;
+  inset: 0;
+  width: 100%;
+  height: 100%;
+  pointer-events: none;
+}
+
+/* Placed decorations live here. #decorLayer itself stays click-through
+   (pointer-events:none) so taps on empty hand space reach #artboard's own
+   handler; each placed sticker's img/handle opts back into pointer-events
+   individually. */
+#decorLayer {
+  position: absolute;
+  inset: 0;
+  pointer-events: none;
+}
+
+/* One wrap per placed sticker. JS sets transform: translate(cx,cy)
+   rotate(angle) on this element — translate positions it at the tap
+   point, rotate turns both the sticker and its handle together as a
+   single rigid unit. Scale is deliberately NOT part of this transform;
+   it's applied as a literal width on .placedDecor instead (see below),
+   so the handle (a child) can stay a constant physical size regardless
+   of how big the sticker itself gets. */
+.placedDecorWrap {
+  position: absolute;
+  left: 0;
+  top: 0;
+}
+
+.placedDecor {
+  position: absolute;
+  left: 0;
+  top: 0;
+  width: 52px; /* JS overrides this per-instance as the sticker is resized */
+  height: auto;
+  transform: translate(-50%, -50%);
+  pointer-events: auto;
+  cursor: grab;
+  touch-action: none;
+  -webkit-user-drag: none;
+  user-drag: none;
+  filter: drop-shadow(0 3px 5px rgba(60, 30, 10, 0.35));
+  animation: decorPop 180ms ease-out;
+}
+
+/* A small lift while actively being dragged/resized, so moving a sticker
+   has some tactile feedback instead of just silently teleporting. */
+.placedDecor:active {
+  cursor: grabbing;
+  filter: drop-shadow(0 6px 10px rgba(60, 30, 10, 0.45)) brightness(1.04);
+}
+
+@keyframes decorPop {
+  from {
+    transform: translate(-50%, -50%) scale(0.4);
+    opacity: 0;
+  }
+  to {
+    transform: translate(-50%, -50%) scale(1);
+    opacity: 1;
+  }
+}
+
+/* ---- Resize + rotate handle ----
+   Sits just outside the sticker's current edge, along its own local
+   +x axis — JS sets transform: translate(r, 0) translate(-50%, -50%),
+   where r grows/shrinks with the sticker's current size. Only visible
+   while its sticker is selected for adjustment (.visible), so an
+   untouched hand full of finished stickers doesn't look cluttered with
+   controls. Dragging it resizes (distance from center) and rotates
+   (angle from center) the sticker together in one motion. */
+.decorHandle {
+  position: absolute;
+  left: 0;
+  top: 0;
+  width: 30px;
+  height: 30px;
+  border-radius: 50%;
+  display: none;
+  align-items: center;
+  justify-content: center;
+  cursor: grab;
+  pointer-events: auto;
+  touch-action: none;
+  background: radial-gradient(circle at 35% 30%, #fffaf3 0%, #ecd8b8 55%, #cda86e 100%);
+  box-shadow: 0 0 0 2px rgba(255, 255, 255, 0.6), 0 4px 10px rgba(122, 83, 48, 0.4);
+}
+
+.decorHandle.visible {
+  display: flex;
+}
+
+.decorHandle:active {
+  cursor: grabbing;
+}
+
+.decorHandle::before {
+  content: '';
+  width: 12px;
+  height: 12px;
+  border-radius: 2px;
+  border: 2px solid rgba(122, 83, 48, 0.75);
+  transform: rotate(45deg);
+}
+
+/* ---- Delete button ----
+   Mirrors the resize/rotate handle on the opposite side of the sticker
+   (JS: translate(-r, 0)), same size/visibility rules, but a distinct
+   coral/red tone + × glyph so it reads as a different, one-way action
+   rather than another draggable control — kids shouldn't confuse "grab
+   to resize" with "tap to remove." */
+.decorDeleteBtn {
+  position: absolute;
+  left: 0;
+  top: 0;
+  width: 30px;
+  height: 30px;
+  border-radius: 50%;
+  display: none;
+  align-items: center;
+  justify-content: center;
+  cursor: pointer;
+  pointer-events: auto;
+  touch-action: none;
+  background: radial-gradient(circle at 35% 30%, #ffb199 0%, #f16a55 60%, #d94f3c 100%);
+  box-shadow: 0 0 0 2px rgba(255, 255, 255, 0.6), 0 4px 10px rgba(122, 83, 48, 0.35);
+  transition: transform 120ms ease;
+}
+
+.decorDeleteBtn.visible {
+  display: flex;
+}
+
+.decorDeleteBtn:active {
+  transform: scale(0.9);
+}
+
+.decorDeleteBtn::before,
+.decorDeleteBtn::after {
+  content: '';
+  position: absolute;
+  width: 14px;
+  height: 2.5px;
+  border-radius: 2px;
+  background: #fff;
+}
+
+.decorDeleteBtn::before {
+  transform: rotate(45deg);
+}
+
+.decorDeleteBtn::after {
+  transform: rotate(-45deg);
+}
+
+/* ---- Decoration tray ----
+   Same row-of-circular-buttons look as the real toolbar (.toolBtn
+   .iconOnly, reused from full-flow.css), just its own container so it
+   isn't tangled up with the real #toolbar's 10-button scroll rules. */
+#decorTray {
+  flex: 0 0 auto;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  flex-wrap: wrap;
+  gap: 10px;
+  padding: 4px 16px 10px;
+}
+
+/* Selected-item ring — same visual language as .tool-select.active,
+   copied rather than shared since decoration buttons aren't part of
+   the real toolbar's tool-select group. */
+.decorBtn.active {
+  box-shadow: 0 0 0 3px var(--stencil-accent), 0 6px 14px rgba(122, 83, 48, 0.35);
+  transform: scale(1.05);
+}
+
+/* Once Done is pressed the tray is no longer usable — dim it rather
+   than yanking it away, so it's clear the decorating step is over
+   without the layout jumping. */
+#decorTray.locked {
+  opacity: 0.4;
+  pointer-events: none;
+}
+
+#doneBtn {
+  font-family: inherit;
+  font-size: 14px;
+  font-weight: 700;
+  border: none;
+  border-radius: 999px;
+  padding: 12px 26px;
+  cursor: pointer;
+  color: #fff;
+  background: var(--stencil-accent);
+  box-shadow: 0 6px 14px rgba(122, 83, 48, 0.28);
+  transition: transform 120ms ease, box-shadow 120ms ease, opacity 200ms ease;
+}
+
+#doneBtn:active {
+  transform: scale(0.96);
+  box-shadow: 0 3px 8px rgba(122, 83, 48, 0.28);
+}
+
+#doneBtn:disabled {
+  opacity: 0.45;
+  cursor: default;
+}
+
+/* Reset Test is a secondary/outline action — same treatment used
+   throughout this project for that role (#changeBtn, etc). */
+#resetBtn {
+  font-family: inherit;
+  font-size: 14px;
+  font-weight: 700;
+  border: none;
+  border-radius: 999px;
+  padding: 12px 22px;
+  cursor: pointer;
+  background: transparent;
+  color: var(--stencil-accent-dark);
+  box-shadow: inset 0 0 0 2px rgba(122, 83, 48, 0.35);
+  transition: transform 120ms ease;
+}
+
+#resetBtn:active {
+  transform: scale(0.96);
+}

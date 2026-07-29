@@ -1,0 +1,176 @@
+/* =========================================================
+   Jiyana's Mehendi Studio — text-stencil test harness styling
+   Purpose: everything specific to the isolated text-stencil
+   picker + tracing test page. Kept out of style.css on purpose,
+   same reasoning as stencil.css.
+   ========================================================= */
+
+:root {
+  --stencil-accent: #a9713f;
+  --stencil-accent-dark: #7a5330;
+}
+
+#stencilCanvas {
+  position: absolute;
+  inset: 0;
+  width: 100%;
+  height: 100%;
+  pointer-events: none;
+}
+
+/* ---- Design picker ---- */
+#picker {
+  position: absolute;
+  inset: 0;
+  z-index: 10;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 22px;
+  padding: 24px;
+  background: linear-gradient(180deg, var(--bg-top) 0%, var(--bg-mid) 55%, var(--bg-bot) 100%);
+  opacity: 1;
+  transition: opacity 260ms ease;
+}
+
+#picker.hidden {
+  opacity: 0;
+  pointer-events: none;
+}
+
+.pickerTitle {
+  font-size: clamp(17px, 4.5vw, 21px);
+  font-weight: 700;
+  color: var(--stencil-accent-dark);
+  text-align: center;
+}
+
+#pickerCards {
+  display: flex;
+  flex-direction: column;
+  gap: 16px;
+  width: min(86vw, 380px);
+}
+
+.pickerCard {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 8px;
+  background: #fffaf3;
+  border-radius: 18px;
+  padding: 18px 14px;
+  box-shadow: 0 8px 20px rgba(122, 83, 48, 0.16);
+  cursor: pointer;
+  transition: transform 120ms ease, box-shadow 120ms ease;
+}
+
+.pickerCard:active {
+  transform: scale(0.96);
+  box-shadow: 0 4px 10px rgba(122, 83, 48, 0.16);
+}
+
+.pickerCard img {
+  max-width: 100%;
+  max-height: 64px;
+  -webkit-user-drag: none;
+  user-drag: none;
+}
+
+.pickerCard .pickerLabel {
+  font-size: 13px;
+  font-weight: 700;
+  color: var(--stencil-accent-dark);
+  opacity: 0.8;
+}
+
+/* ---- Freehand entry point: deliberately separate from the design
+   grid above (its own divider + outlined pill) so it reads as a
+   distinct mode — "just draw" — rather than a 7th design choice. ---- */
+.pickerDivider {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  width: min(86vw, 380px);
+  color: var(--stencil-accent-dark);
+  opacity: 0.45;
+  font-size: 12px;
+  font-weight: 700;
+  text-transform: uppercase;
+  letter-spacing: 0.06em;
+}
+
+.pickerDivider::before,
+.pickerDivider::after {
+  content: '';
+  flex: 1;
+  height: 1px;
+  background: currentColor;
+}
+
+#freehandBtn {
+  font-family: inherit;
+  font-size: 14px;
+  font-weight: 700;
+  border: none;
+  border-radius: 999px;
+  padding: 12px 26px;
+  cursor: pointer;
+  background: transparent;
+  color: var(--stencil-accent-dark);
+  box-shadow: inset 0 0 0 2px rgba(122, 83, 48, 0.35);
+  transition: transform 120ms ease, box-shadow 120ms ease;
+}
+
+#freehandBtn:active {
+  transform: scale(0.96);
+  box-shadow: inset 0 0 0 2px rgba(122, 83, 48, 0.5);
+}
+
+/* ---- Hint text ---- */
+.hint {
+  flex: 0 0 auto;
+  text-align: center;
+  min-height: 1.4em;
+  padding: 4px 20px 2px;
+  font-size: clamp(13px, 3vw, 15px);
+  font-weight: 600;
+  color: var(--stencil-accent-dark);
+  opacity: 0.85;
+}
+
+/* ---- Test-harness controls ---- */
+#controls {
+  flex: 0 0 auto;
+  display: flex;
+  justify-content: center;
+  gap: 12px;
+  padding: 6px 20px calc(16px + env(safe-area-inset-bottom));
+}
+
+#controls button {
+  font-family: inherit;
+  font-size: 14px;
+  font-weight: 700;
+  border: none;
+  border-radius: 999px;
+  padding: 12px 22px;
+  cursor: pointer;
+  color: #fff;
+  background: var(--stencil-accent);
+  box-shadow: 0 6px 14px rgba(122, 83, 48, 0.28);
+  transition: transform 120ms ease, opacity 200ms ease, box-shadow 120ms ease;
+}
+
+#controls button:active {
+  transform: scale(0.96);
+  box-shadow: 0 3px 8px rgba(122, 83, 48, 0.28);
+}
+
+#changeBtn {
+  background: transparent;
+  color: var(--stencil-accent-dark);
+  box-shadow: inset 0 0 0 2px rgba(122, 83, 48, 0.35);
+}

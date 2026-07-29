@@ -1,0 +1,513 @@
+/* =========================================================
+   Jiyana's Mehendi Studio — full-flow test harness styling
+   Purpose: only what's new for sequencing the 4 controls
+   (Change Design / Clear / Done / Start Again) across phases.
+   Everything else reuses text-stencil.css (picker, hint, base
+   button look) and dry-scrape.css (scrape cursor, dryer rig)
+   completely unchanged.
+   ========================================================= */
+
+#controls button.hidden {
+  display: none;
+}
+
+/* The flower/text/peacock pickers only ever showed 2-3 cards, so
+   text-stencil.css never needed to worry about the list outgrowing the
+   screen. With all 6 designs in one picker, a short phone in portrait
+   can run out of vertical room — let the card list scroll instead of
+   clipping the lower designs. */
+#picker {
+  justify-content: flex-start;
+  overflow-y: auto;
+}
+
+#pickerCards {
+  padding-bottom: 12px;
+}
+
+/* ---- Coin counter (picker/home screen) ----
+   Just a running total for now — nothing to spend it on yet, per the
+   brief. Sits above the picker title so it reads as a persistent stat
+   rather than part of the "choose a design" instruction. */
+#coinCounter {
+  align-self: center;
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  padding: 6px 14px;
+  margin-bottom: 4px;
+  border-radius: 999px;
+  background: rgba(255, 250, 243, 0.6);
+  box-shadow: inset 0 0 0 1.5px rgba(122, 83, 48, 0.25);
+}
+
+#coinCounter img {
+  width: 22px;
+  height: 22px;
+  display: block;
+}
+
+#coinCounterAmount {
+  font-size: 15px;
+  font-weight: 700;
+  color: var(--stencil-accent-dark);
+}
+
+/* ---- Result screen (stars + coins + Next Design) ----
+   Shown only during the 'done' phase, right after scraping finishes —
+   see updateControlsForPhase() in JS. Sits directly above #controls,
+   which by this point only holds the (hidden) Change Design button, so
+   in practice this is the only thing visible there once a design is
+   complete. */
+#resultPanel {
+  flex: 0 0 auto;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 10px;
+  padding: 4px 20px 10px;
+}
+
+#resultPanel.hidden {
+  display: none;
+}
+
+#resultStars {
+  display: flex;
+  gap: 6px;
+}
+
+.resultStar {
+  width: 40px;
+  height: 40px;
+  display: block;
+  filter: grayscale(1);
+  opacity: 0.32;
+  transition: opacity 200ms ease, filter 200ms ease, transform 200ms ease;
+}
+
+.resultStar.earned {
+  filter: none;
+  opacity: 1;
+  transform: scale(1.08);
+}
+
+#resultCoins {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+}
+
+#resultCoins img {
+  width: 26px;
+  height: 26px;
+  display: block;
+}
+
+#resultCoinAmount {
+  font-size: 17px;
+  font-weight: 700;
+  color: var(--stencil-accent-dark);
+}
+
+#nextDesignBtn {
+  font-family: inherit;
+  font-size: 14px;
+  font-weight: 700;
+  border: none;
+  border-radius: 999px;
+  padding: 12px 26px;
+  cursor: pointer;
+  color: #fff;
+  background: var(--stencil-accent);
+  box-shadow: 0 6px 14px rgba(122, 83, 48, 0.28);
+  transition: transform 120ms ease, box-shadow 120ms ease;
+}
+
+#nextDesignBtn:active {
+  transform: scale(0.96);
+  box-shadow: 0 3px 8px rgba(122, 83, 48, 0.28);
+}
+
+/* ---- Toolbar (Cone / Toothpick / Dotting tool + Undo / Clear / Done) ----
+   Built for the first time here — toolbar_gameplay_v1.png was only ever
+   a reference image before this. Cone/Undo/Clear/Done are square photo
+   crops of that reference art (with its own real cream/gold pill
+   backdrop baked in); a circular clip is all they need. Toothpick and
+   Dotting tool are true cutouts with no backdrop of their own, so they
+   get a CSS radial-gradient face tuned to match the same cream/gold
+   tone sampled from the reference art, keeping all 6 buttons reading as
+   one consistent set despite the mixed origins. */
+/* Now 7 tool-select buttons + divider + 3 action buttons = 10 total,
+   which doesn't reliably fit one row on a phone-width screen. Let the
+   row scroll horizontally rather than shrinking buttons down to the
+   point they're hard to tap accurately — flex-shrink:0 below keeps
+   every button at its full tap-friendly size regardless of how many
+   there are. justify-content switches to flex-start so scrolling has
+   somewhere to go instead of everything staying centered and clipped
+   equally on both sides. */
+#toolbar {
+  flex: 0 0 auto;
+  display: flex;
+  align-items: center;
+  justify-content: flex-start;
+  gap: 10px;
+  padding: 4px 16px 10px;
+  overflow-x: auto;
+  overflow-y: hidden;
+  -webkit-overflow-scrolling: touch;
+  scrollbar-width: none;
+}
+
+#toolbar::-webkit-scrollbar {
+  display: none;
+}
+
+#toolbar.hidden {
+  display: none;
+}
+
+.toolBtn {
+  width: 58px;
+  height: 58px;
+  padding: 0;
+  border: none;
+  border-radius: 50%;
+  overflow: hidden;
+  position: relative;
+  cursor: pointer;
+  background: transparent;
+  box-shadow: 0 6px 14px rgba(122, 83, 48, 0.28);
+  transition: transform 120ms ease, box-shadow 120ms ease, opacity 160ms ease;
+  flex-shrink: 0;
+}
+
+.toolBtn img {
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+  display: block;
+  -webkit-user-drag: none;
+  user-drag: none;
+}
+
+.toolBtn:active {
+  transform: scale(0.94);
+}
+
+.toolBtn:disabled {
+  opacity: 0.35;
+  cursor: default;
+  pointer-events: none;
+}
+
+/* Toothpick / Dotting tool: no baked-in background, so give them the
+   same warm cream-to-gold face sampled from the reference pill art
+   (~#f4e9d7 highlight to ~#cda86e edge), with the glyph inset instead
+   of filling edge-to-edge. */
+.toolBtn.iconOnly {
+  background: radial-gradient(circle at 35% 30%, #fffaf3 0%, #ecd8b8 55%, #cda86e 100%);
+}
+
+.toolBtn.iconOnly img {
+  object-fit: contain;
+  padding: 11px;
+  box-sizing: border-box;
+}
+
+/* Selected-tool ring, only meaningful for the Cone/Toothpick/Dot group. */
+.toolBtn.tool-select.active {
+  box-shadow: 0 0 0 3px var(--stencil-accent), 0 6px 14px rgba(122, 83, 48, 0.35);
+  transform: scale(1.05);
+}
+
+.toolbarDivider {
+  width: 1px;
+  height: 36px;
+  background: rgba(122, 83, 48, 0.25);
+  margin: 0 2px;
+  flex-shrink: 0;
+}
+
+/* ---- Staged shape (Dot / Circle stamp / Paisley stamp) ----
+   Replaces the old small/medium/large size-picker buttons. Tapping one
+   of these 3 tools now places a temporary, adjustable shape — not yet
+   painted into the henna — with the exact same one-finger resize/rotate
+   handle proven out on decoration-test.js's stickers, plus a plain drag
+   on the shape itself to move it. It bakes into the real henna canvas
+   the moment the player does their next action (taps elsewhere, picks
+   another tool, hits Done, etc.) — see bakeStagedShape() in JS.
+
+   #stampStage itself stays click-through so a tap on blank hand space
+   still reaches the artboard's own placement handler; the shape/handle/
+   flip-button opt back into pointer-events individually. Structurally
+   and visually this mirrors .placedDecorWrap/.decorHandle in
+   decoration.css on purpose — same gesture, same look, different file
+   because this one paints into a canvas instead of placing an <img>. */
+#stampStage {
+  position: absolute;
+  inset: 0;
+  pointer-events: none;
+}
+
+.stampWrap {
+  position: absolute;
+  left: 0;
+  top: 0;
+}
+
+.stampPreviewCanvas {
+  position: absolute;
+  left: 0;
+  top: 0;
+  transform: translate(-50%, -50%);
+  pointer-events: auto;
+  cursor: grab;
+  touch-action: none;
+}
+
+.stampPreviewCanvas:active {
+  cursor: grabbing;
+}
+
+.stampHandle {
+  position: absolute;
+  left: 0;
+  top: 0;
+  width: 30px;
+  height: 30px;
+  border-radius: 50%;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  cursor: grab;
+  pointer-events: auto;
+  touch-action: none;
+  background: radial-gradient(circle at 35% 30%, #fffaf3 0%, #ecd8b8 55%, #cda86e 100%);
+  box-shadow: 0 0 0 2px rgba(255, 255, 255, 0.6), 0 4px 10px rgba(122, 83, 48, 0.4);
+}
+
+.stampHandle:active {
+  cursor: grabbing;
+}
+
+.stampHandle::before {
+  content: '';
+  width: 12px;
+  height: 12px;
+  border-radius: 2px;
+  border: 2px solid rgba(122, 83, 48, 0.75);
+  transform: rotate(45deg);
+}
+
+/* Paisley-only: flips the shape left-right. Mirrors the handle on the
+   opposite side of the staged shape so the two never overlap. */
+.stampFlipBtn {
+  position: absolute;
+  left: 0;
+  top: 0;
+  width: 30px;
+  height: 30px;
+  border-radius: 50%;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  cursor: pointer;
+  pointer-events: auto;
+  touch-action: none;
+  font-size: 15px;
+  color: #fff;
+  background: radial-gradient(circle at 35% 30%, #8fc7c0 0%, #4f9c93 60%, #397e77 100%);
+  box-shadow: 0 0 0 2px rgba(255, 255, 255, 0.6), 0 4px 10px rgba(122, 83, 48, 0.35);
+  transition: transform 120ms ease;
+}
+
+.stampFlipBtn:active {
+  transform: scale(0.9);
+}
+
+/* ---- On-canvas tool anchor ----
+   style.css defines #coneAnchor/#cone for main.js's single-tool setup;
+   this page renamed the anchor to #toolAnchor. It only ever holds the 3
+   tools whose real-world size/shape makes sense to rest at the fingertip
+   at full size — Cone, Toothpick, Dotting tool — so it needs its own
+   copy of that same positioning rule (style.css is shared with
+   index.html/main.js and stays untouched). Exactly one image is
+   display:block at a time — toggled in JS via setTool() — cone is the
+   default so there's no flash of the wrong tool before the first script
+   tick. Every other tool (ruler/curve/circle stamp/paisley
+   stamp/eraser) uses #actionCursor instead — see below. */
+#toolAnchor {
+  position: absolute;
+  left: 0;
+  top: 0;
+  width: 0;
+  height: 0;
+  pointer-events: none;
+  opacity: 0;
+  transition: opacity 220ms ease;
+}
+
+#toolAnchor.visible {
+  opacity: 1;
+}
+
+#toolAnchor img {
+  position: absolute;
+  -webkit-user-drag: none;
+  user-drag: none;
+  pointer-events: none;
+  filter: drop-shadow(0 6px 8px rgba(80, 50, 15, 0.28));
+  display: none;
+}
+
+#toolAnchor img#cone {
+  display: block;
+}
+
+/* ---- On-canvas action cursor ----
+   Fixes a real usability bug: showing the full ruler/curve/circle-stamp/
+   paisley-stamp/eraser icon (all sized to read clearly as a toolbar
+   button) sitting on top of the exact spot the player is working on
+   blocked their view of the hand while any of those 5 tools was active.
+   Cone/Toothpick/Dotting-tool keep the real icon (#toolAnchor above)
+   because their tips are the actual reference point of the tool and the
+   icon's own bulk trails away from that point, so it doesn't cover the
+   work; these 5 don't have that same "held tool" shape, so instead they
+   get this small, unobtrusive glow — same visual language as
+   #scrapeGlow in dry-scrape.css — just marking where the action will
+   land. Which tool is actually selected is shown on the toolbar button
+   itself (.tool-select.active), not on the canvas. */
+#actionCursor {
+  position: absolute;
+  left: 0;
+  top: 0;
+  width: 0;
+  height: 0;
+  pointer-events: none;
+  opacity: 0;
+  transition: opacity 200ms ease;
+}
+
+#actionCursor.visible {
+  opacity: 0.85;
+}
+
+#actionCursorGlow {
+  position: absolute;
+  left: 0;
+  top: 0;
+  width: 34px;
+  height: 34px;
+  margin-left: -17px;
+  margin-top: -17px;
+  border-radius: 50%;
+  background: radial-gradient(circle, rgba(214, 150, 96, 0.5) 0%, rgba(214, 150, 96, 0.2) 55%, rgba(214, 150, 96, 0) 78%);
+  box-shadow: 0 0 0 2px rgba(122, 83, 48, 0.4);
+}
+
+/* =========================================================
+   Additions below are for the real consolidated build
+   (index.html / js/main.js) only — new rules, purely additive.
+   Nothing above this line is touched, so full-flow-test.html
+   (which also links this file) keeps working unchanged.
+   ========================================================= */
+
+/* ---- Decoration step controls ----
+   #decorTray itself (row of sticker buttons) reuses .toolBtn.iconOnly
+   and #decorTray's own layout rule straight from decoration.css —
+   nothing new needed there. This is just the small "Done" action shown
+   alongside it, styled the same as every other primary action button
+   in this file (#nextDesignBtn, #doneBtn in decoration.css). */
+#decorTray.hidden,
+#decorControls.hidden,
+#finishedPanel.hidden,
+#dryerControls.hidden {
+  display: none;
+}
+
+#decorControls {
+  flex: 0 0 auto;
+  display: flex;
+  justify-content: center;
+  padding: 2px 16px 10px;
+}
+
+/* Shown only during 'drying' — same pill-button look as Decor's Done,
+   the one deliberate way to move on from a now-untimed, player-paced
+   drying step. See js/main.js for the dryer-follows-the-finger part. */
+#dryerControls {
+  flex: 0 0 auto;
+  display: flex;
+  justify-content: center;
+  padding: 2px 16px 10px;
+}
+
+#dryerDoneBtn {
+  font-family: inherit;
+  font-size: 14px;
+  font-weight: 700;
+  border: none;
+  border-radius: 999px;
+  padding: 12px 26px;
+  cursor: pointer;
+  color: #fff;
+  background: var(--stencil-accent);
+  box-shadow: 0 6px 14px rgba(122, 83, 48, 0.28);
+  transition: transform 120ms ease, box-shadow 120ms ease;
+}
+
+#dryerDoneBtn:active {
+  transform: scale(0.96);
+  box-shadow: 0 3px 8px rgba(122, 83, 48, 0.28);
+}
+
+#decorDoneBtn {
+  font-family: inherit;
+  font-size: 14px;
+  font-weight: 700;
+  border: none;
+  border-radius: 999px;
+  padding: 12px 26px;
+  cursor: pointer;
+  color: #fff;
+  background: var(--stencil-accent);
+  box-shadow: 0 6px 14px rgba(122, 83, 48, 0.28);
+  transition: transform 120ms ease, box-shadow 120ms ease;
+}
+
+#decorDoneBtn:active {
+  transform: scale(0.96);
+  box-shadow: 0 3px 8px rgba(122, 83, 48, 0.28);
+}
+
+/* ---- Finished screen ----
+   Shown once decorating is done (or skipped) — the true end of the
+   whole flow. Deliberately just a button for now: no stars/coins here
+   yet, since that reward layer is a separate, still-evolving piece
+   coming as its own follow-up, not part of this consolidation. */
+#finishedPanel {
+  flex: 0 0 auto;
+  display: flex;
+  justify-content: center;
+  padding: 4px 20px 14px;
+}
+
+#newDesignBtn {
+  font-family: inherit;
+  font-size: 14px;
+  font-weight: 700;
+  border: none;
+  border-radius: 999px;
+  padding: 12px 26px;
+  cursor: pointer;
+  color: #fff;
+  background: var(--stencil-accent);
+  box-shadow: 0 6px 14px rgba(122, 83, 48, 0.28);
+  transition: transform 120ms ease, box-shadow 120ms ease;
+}
+
+#newDesignBtn:active {
+  transform: scale(0.96);
+  box-shadow: 0 3px 8px rgba(122, 83, 48, 0.28);
+}

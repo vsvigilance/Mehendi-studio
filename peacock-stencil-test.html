@@ -1,0 +1,52 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1, user-scalable=no, viewport-fit=cover">
+<title>Peacock Stencil Test — Jiyana's Mehendi Studio</title>
+<link rel="stylesheet" href="css/style.css">
+<link rel="stylesheet" href="css/text-stencil.css">
+</head>
+<body>
+
+  <!-- Isolated peacock-stencil test harness, same pattern as the flower
+       and text-stencil tests: not linked from index.html, does not
+       touch index.html or main.js. Same 2-card picker approach as the
+       text stencils, just with the peacock's two difficulty levels
+       instead of 3 names. Reuses text-stencil.css as-is since the
+       picker/hint/controls styling is identical. -->
+
+  <div id="app">
+
+    <div id="picker">
+      <div class="pickerTitle">Choose a peacock design to trace</div>
+      <div id="pickerCards"></div>
+    </div>
+
+    <div id="stageWrap">
+      <div id="stage">
+        <div id="artboard">
+          <img id="palm" src="assets/hero_palm.png" alt="">
+          <canvas id="stencilCanvas"></canvas>
+          <canvas id="inkCanvas"></canvas>
+          <div id="coneAnchor">
+            <img id="cone" src="assets/mehendi_cone.png" alt="">
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <div id="hint" class="hint">Trace the peacock with the cone</div>
+
+    <div id="controls">
+      <button id="changeBtn" type="button">Change Design</button>
+      <button id="clearBtn" type="button">Clear</button>
+    </div>
+  </div>
+
+  <img id="src-peacock_easy" src="assets/peacock_easy.png" alt="" hidden>
+  <img id="src-peacock_advanced" src="assets/peacock_advanced.png" alt="" hidden>
+
+  <script src="js/peacock-stencil-test.js"></script>
+</body>
+</html>

@@ -1,0 +1,220 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1, user-scalable=no, viewport-fit=cover">
+<title>Jiyana's Mehendi Studio</title>
+<link rel="stylesheet" href="css/style.css">
+<link rel="stylesheet" href="css/text-stencil.css">
+<link rel="stylesheet" href="css/dry-scrape.css">
+<link rel="stylesheet" href="css/full-flow.css">
+<link rel="stylesheet" href="css/decoration.css">
+</head>
+<body>
+
+  <!-- Jiyana's Mehendi Studio — the real, playable game.
+
+       This consolidates every previously-isolated, individually-approved
+       system into one real sequence, start to finish:
+
+         pick design -> trace guide (any tool) -> Done -> dry -> scrape
+         -> optional decorate (gems/bindis/flowers) -> finished piece
+
+       Every piece here (cone/ink engine, guide layer, toolbar +
+       place->adjust->bake stamps, dry+scrape, decoration tray) is the
+       exact same code already proven out and approved in
+       full-flow-test.js and decoration-test.js — this file's job is
+       purely the final consolidation, plus the one new phase
+       (decorating) that connects scraping to the decoration step.
+
+       Coin/star rewards are deliberately left out of this build per
+       Vinit's explicit instruction — that's a separate, still-evolving
+       piece coming as its own follow-up update, not dropped by mistake. -->
+
+  <div id="app">
+
+    <div id="picker">
+      <div class="pickerTitle">Choose a design to trace</div>
+      <div id="pickerCards"></div>
+      <div class="pickerDivider"><span>or</span></div>
+      <button id="freehandBtn" type="button">Just Draw</button>
+    </div>
+
+    <div id="stageWrap">
+      <div id="stage">
+        <div id="artboard">
+          <img id="palm" src="assets/hero_palm.png" alt="">
+
+          <!-- Guide: faint, non-fading while tracing. Cleared the
+               instant Done is pressed so nothing can show through the
+               finished piece underneath. -->
+          <canvas id="stencilCanvas"></canvas>
+
+          <!-- Reveal stack: stain (bottom) -> dried paste (scraped
+               away) -> wet ink (visible while tracing, fades out once
+               drying starts). -->
+          <canvas id="stainCanvas"></canvas>
+          <canvas id="driedCanvas"></canvas>
+          <canvas id="wetCanvas"></canvas>
+
+          <!-- Holds the single "staged" Dot/Circle-stamp/Paisley-stamp
+               shape while it's being adjusted — placed on tap, not yet
+               painted into the henna. JS creates/removes its one child
+               (.stampWrap) as shapes are placed and baked. -->
+          <div id="stampStage"></div>
+
+          <!-- Placed decorations (gems/bindis/flower stickers), added
+               during the 'decorating' phase once scraping is complete.
+               Sits above every henna layer so stickers always render on
+               top of the finished design. -->
+          <div id="decorLayer"></div>
+
+          <!-- toolAnchor is translated to the drawing point each frame
+               — holds the 3 tools whose real-world size/shape makes
+               sense to show at full size resting at the fingertip
+               (cone/toothpick/dotting tool). JS toggles which one is
+               visible based on the selected tool; only one is ever
+               shown at a time. -->
+          <div id="toolAnchor">
+            <img id="cone" src="assets/mehendi_cone.png" alt="">
+            <img id="toothpick" src="assets/icon_toothpick.png" alt="">
+            <img id="dotTool" src="assets/icon_dotting.png" alt="">
+          </div>
+
+          <!-- actionCursor is the on-canvas indicator for every OTHER
+               tool (ruler, curve, circle stamp, paisley stamp, eraser).
+               These tools' toolbar icons are large/detailed enough that
+               showing them full-size at the working point would block
+               the player's view of exactly what they're doing — so
+               instead of the real icon, this is just a small unobtrusive
+               glow marking where the action will happen. -->
+          <div id="actionCursor">
+            <div id="actionCursorGlow"></div>
+          </div>
+
+          <div id="scrapeCursor">
+            <div id="scrapeGlow"></div>
+            <img id="scraperTool" src="assets/scraper_tool.png" alt="">
+          </div>
+
+          <div id="dryerRig">
+            <img id="dryerIcon" src="assets/hairdryer.png" alt="">
+            <div id="dryerPuffs">
+              <span class="puff"></span>
+              <span class="puff"></span>
+              <span class="puff"></span>
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <div id="hint" class="hint"></div>
+
+    <!-- Toolbar: Cone/Toothpick/Dotting tool/Ruler/Curve guide/Circle
+         stamp/Paisley stamp/Eraser are a toggle group (exactly one
+         active at a time); Undo/Clear/Done are actions. Only shown
+         during the 'tracing' phase. -->
+    <div id="toolbar">
+      <button class="toolBtn tool-select active" data-tool="cone" title="Cone" type="button">
+        <img src="assets/icon_cone.png" alt="Cone">
+      </button>
+      <button class="toolBtn tool-select iconOnly" data-tool="toothpick" title="Toothpick" type="button">
+        <img src="assets/icon_toothpick.png" alt="Toothpick">
+      </button>
+      <button class="toolBtn tool-select iconOnly" data-tool="dot" title="Dotting Tool" type="button">
+        <img src="assets/icon_dotting.png" alt="Dotting Tool">
+      </button>
+      <button class="toolBtn tool-select iconOnly" data-tool="ruler" title="Ruler" type="button">
+        <img src="assets/icon_ruler.png" alt="Ruler">
+      </button>
+      <button class="toolBtn tool-select iconOnly" data-tool="curve" title="Curve Guide" type="button">
+        <img src="assets/icon_curve.png" alt="Curve Guide">
+      </button>
+      <button class="toolBtn tool-select iconOnly" data-tool="circle" title="Circle Stamp" type="button">
+        <img src="assets/icon_circle_stamp.png" alt="Circle Stamp">
+      </button>
+      <button class="toolBtn tool-select" data-tool="paisley" title="Paisley Stamp" type="button">
+        <img src="assets/icon_paisley.png" alt="Paisley Stamp">
+      </button>
+      <button class="toolBtn tool-select iconOnly" data-tool="eraser" title="Eraser" type="button">
+        <img src="assets/icon_eraser.png" alt="Eraser">
+      </button>
+      <div class="toolbarDivider"></div>
+      <button id="undoBtn" class="toolBtn" title="Undo" type="button" disabled>
+        <img src="assets/icon_undo.png" alt="Undo">
+      </button>
+      <button id="iconClearBtn" class="toolBtn" title="Clear" type="button">
+        <img src="assets/icon_clear.png" alt="Clear">
+      </button>
+      <button id="iconDoneBtn" class="toolBtn" title="Done" type="button">
+        <img src="assets/icon_done.png" alt="Done">
+      </button>
+    </div>
+
+    <div id="controls">
+      <button id="changeBtn" type="button">Change Design</button>
+    </div>
+
+    <!-- Shown only during the 'drying' phase. The dryer icon itself
+         follows her finger/mouse over the hand (see js/main.js) for as
+         long as she likes — this button is the one deliberate way to
+         say "okay, move on to scraping," so freely waving the dryer
+         around can never accidentally skip ahead. -->
+    <div id="dryerControls" class="hidden">
+      <button id="dryerDoneBtn" type="button">Done Drying</button>
+    </div>
+
+    <!-- Decoration tray: shown only during the 'decorating' phase,
+         right after scraping finishes. Tap a sticker to select it, tap
+         the hand to place it, drag/resize/rotate/delete as needed — see
+         js/main.js for the full interaction (ported from
+         decoration-test.js). Entirely optional; Done works with zero
+         stickers placed. -->
+    <div id="decorTray" class="hidden">
+      <button class="toolBtn iconOnly decorBtn" data-item="gem_heart" title="Heart Gem" type="button">
+        <img src="assets/decor_gem_heart.png" alt="Heart Gem">
+      </button>
+      <button class="toolBtn iconOnly decorBtn" data-item="gem_blue" title="Blue Gem" type="button">
+        <img src="assets/decor_gem_blue.png" alt="Blue Gem">
+      </button>
+      <button class="toolBtn iconOnly decorBtn" data-item="gem_green" title="Green Gem" type="button">
+        <img src="assets/decor_gem_teardrop_green.png" alt="Green Gem">
+      </button>
+      <button class="toolBtn iconOnly decorBtn" data-item="bindi_gold" title="Gold Bindi" type="button">
+        <img src="assets/decor_bindi_gold.png" alt="Gold Bindi">
+      </button>
+      <button class="toolBtn iconOnly decorBtn" data-item="bindi_red" title="Red Bindi" type="button">
+        <img src="assets/decor_bindi_drop_red.png" alt="Red Bindi">
+      </button>
+      <button class="toolBtn iconOnly decorBtn" data-item="flower_pink" title="Pink Flower" type="button">
+        <img src="assets/decor_flower_pink.png" alt="Pink Flower">
+      </button>
+      <button class="toolBtn iconOnly decorBtn" data-item="flower_purple" title="Purple Flower" type="button">
+        <img src="assets/decor_flower_purple.png" alt="Purple Flower">
+      </button>
+    </div>
+
+    <div id="decorControls" class="hidden">
+      <button id="decorDoneBtn" type="button">Done</button>
+    </div>
+
+    <!-- Final screen: shown once decorating is finished (Done tapped).
+         No stars/coins here yet — that reward layer is a separate,
+         still-in-progress piece coming as a follow-up update. -->
+    <div id="finishedPanel" class="hidden">
+      <button id="newDesignBtn" type="button">New Design</button>
+    </div>
+  </div>
+
+  <!-- Hidden source images for the 6 proven-out designs. -->
+  <img id="src-flower" src="assets/flower_stencil.png" alt="" hidden>
+  <img id="src-peacock_easy" src="assets/peacock_easy.png" alt="" hidden>
+  <img id="src-peacock_advanced" src="assets/peacock_advanced.png" alt="" hidden>
+  <img id="src-dark_vibes" src="assets/text_dark_vibes.png" alt="" hidden>
+  <img id="src-jiyana" src="assets/text_jiyana.png" alt="" hidden>
+  <img id="src-jash" src="assets/text_jash.png" alt="" hidden>
+
+  <script src="js/main.js"></script>
+</body>
+</html>

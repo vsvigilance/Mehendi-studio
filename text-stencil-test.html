@@ -1,0 +1,57 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1, user-scalable=no, viewport-fit=cover">
+<title>Text Stencil Test — Jiyana's Mehendi Studio</title>
+<link rel="stylesheet" href="css/style.css">
+<link rel="stylesheet" href="css/text-stencil.css">
+</head>
+<body>
+
+  <!-- Isolated text-stencil test harness, same pattern as the flower
+       stencil test: not linked from index.html, does not touch
+       index.html or main.js. Reuses the exact M1 cone-follow +
+       smooth-ink engine unchanged, and reuses the flower's
+       guide-layer technique (faint, non-fading, clipped to the
+       hand), just generalized to pick from 3 designs first. -->
+
+  <div id="app">
+
+    <!-- Design picker — shown first. Tap a card to trace that design.
+         Purely a selection step; no scoring, no time limit. -->
+    <div id="picker">
+      <div class="pickerTitle">Choose a design to trace</div>
+      <div id="pickerCards"></div>
+    </div>
+
+    <div id="stageWrap">
+      <div id="stage">
+        <div id="artboard">
+          <img id="palm" src="assets/hero_palm.png" alt="">
+          <canvas id="stencilCanvas"></canvas>
+          <canvas id="inkCanvas"></canvas>
+          <div id="coneAnchor">
+            <img id="cone" src="assets/mehendi_cone.png" alt="">
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <div id="hint" class="hint">Trace the design with the cone</div>
+
+    <div id="controls">
+      <button id="changeBtn" type="button">Change Design</button>
+      <button id="clearBtn" type="button">Clear</button>
+    </div>
+  </div>
+
+  <!-- Hidden source images for the 3 designs. stencil-test.js reads
+       their natural size directly from these, same as the flower did. -->
+  <img id="src-dark_vibes" src="assets/text_dark_vibes.png" alt="" hidden>
+  <img id="src-jiyana" src="assets/text_jiyana.png" alt="" hidden>
+  <img id="src-jash" src="assets/text_jash.png" alt="" hidden>
+
+  <script src="js/text-stencil-test.js"></script>
+</body>
+</html>

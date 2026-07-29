@@ -1,0 +1,52 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1, user-scalable=no, viewport-fit=cover">
+<title>Stencil Guide Test — Jiyana's Mehendi Studio</title>
+<link rel="stylesheet" href="css/style.css">
+<link rel="stylesheet" href="css/stencil.css">
+</head>
+<body>
+
+  <!-- Isolated stencil-guide test harness, same pattern as the M2 test
+       page: not linked from index.html, does not touch index.html or
+       main.js. Reuses the exact M1 cone-follow + smooth-ink drawing
+       engine (approved as "excellent" by Vinit) unchanged, and adds one
+       new layer: a faint, non-fading flower guide the player traces
+       over. Once the guide placement and tracing feel are approved,
+       this becomes the real Done-button flow in a later milestone. -->
+
+  <div id="app">
+    <div id="stageWrap">
+      <div id="stage">
+        <div id="artboard">
+          <img id="palm" src="assets/hero_palm.png" alt="">
+
+          <!-- Faint tracing guide. Clipped to the hand's own silhouette,
+               same technique as the ink layer, so it can never appear to
+               float off the skin even if its placement is slightly off. -->
+          <canvas id="stencilCanvas"></canvas>
+
+          <canvas id="inkCanvas"></canvas>
+
+          <div id="coneAnchor">
+            <img id="cone" src="assets/mehendi_cone.png" alt="">
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <div id="hint" class="hint">Trace the flower with the cone</div>
+
+    <div id="controls">
+      <button id="clearBtn" type="button">Clear</button>
+    </div>
+  </div>
+
+  <!-- Source-only reference for the guide artwork's own geometry. -->
+  <img id="stencilSource" src="assets/flower_stencil.png" alt="" hidden>
+
+  <script src="js/stencil-test.js"></script>
+</body>
+</html>

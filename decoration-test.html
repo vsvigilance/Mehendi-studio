@@ -1,0 +1,94 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1, user-scalable=no, viewport-fit=cover">
+<title>Decoration Test — Jiyana's Mehendi Studio</title>
+<link rel="stylesheet" href="css/style.css">
+<link rel="stylesheet" href="css/full-flow.css">
+<link rel="stylesheet" href="css/decoration.css">
+</head>
+<body>
+
+  <!-- Isolated test harness for the new "decorate" step that will
+       eventually sit right after scrape-reveal finishes in the real
+       flow (full-flow-test.js) — not linked from index.html, and does
+       not touch index.html / main.js / full-flow-test.* at all.
+
+       Since the mechanic being proven here is decoration placement, not
+       the reveal itself (already proven in M2 / the full-flow milestone),
+       this test skips straight to "already fully scraped and revealed" —
+       a static henna-brown recolor of the approved flower stencil,
+       drawn once at boot — so the tray + tap-to-place interaction can be
+       judged on its own, the same way dry-scrape-test.js proved out the
+       dry+scrape mechanic against a hardcoded test line instead of a
+       real traced design. -->
+
+  <div id="app">
+    <div id="stageWrap">
+      <div id="stage">
+        <div id="artboard">
+          <img id="palm" src="assets/hero_palm.png" alt="">
+
+          <!-- Stand-in "already finished" henna design — a flat
+               henna-brown recolor of the approved flower stencil,
+               hand-clipped exactly like every real ink/stain layer in
+               this project. Drawn once at boot; never redrawn. -->
+          <canvas id="finishedCanvas"></canvas>
+
+          <!-- Placed decorations live here as plain <img> elements,
+               absolutely positioned at the tapped point. Deliberately
+               not a canvas — these are already-finished sticker art,
+               not procedural ink, so there's nothing to composite or
+               recolor; a DOM element per placement is the simplest
+               thing that works for v1 (tap-to-place only, no
+               drag/resize/rotate). -->
+          <div id="decorLayer"></div>
+        </div>
+      </div>
+    </div>
+
+    <div id="hint" class="hint"></div>
+
+    <!-- Decoration tray. Tap an item to select it (gets the same
+         selected-ring treatment as the real toolbar's tool-select
+         buttons); tap the hand to stamp it there. Tapping the already-
+         selected item again deselects it. Nothing is pre-selected —
+         tapping the hand does nothing until an item is chosen, so
+         idle exploring of the tray can't accidentally place anything. -->
+    <div id="decorTray">
+      <button class="toolBtn iconOnly decorBtn" data-item="gem_heart" title="Heart Gem" type="button">
+        <img src="assets/decor_gem_heart.png" alt="Heart Gem">
+      </button>
+      <button class="toolBtn iconOnly decorBtn" data-item="gem_blue" title="Blue Gem" type="button">
+        <img src="assets/decor_gem_blue.png" alt="Blue Gem">
+      </button>
+      <button class="toolBtn iconOnly decorBtn" data-item="gem_green" title="Green Gem" type="button">
+        <img src="assets/decor_gem_teardrop_green.png" alt="Green Gem">
+      </button>
+      <button class="toolBtn iconOnly decorBtn" data-item="bindi_gold" title="Gold Bindi" type="button">
+        <img src="assets/decor_bindi_gold.png" alt="Gold Bindi">
+      </button>
+      <button class="toolBtn iconOnly decorBtn" data-item="bindi_red" title="Red Bindi" type="button">
+        <img src="assets/decor_bindi_drop_red.png" alt="Red Bindi">
+      </button>
+      <button class="toolBtn iconOnly decorBtn" data-item="flower_pink" title="Pink Flower" type="button">
+        <img src="assets/decor_flower_pink.png" alt="Pink Flower">
+      </button>
+      <button class="toolBtn iconOnly decorBtn" data-item="flower_purple" title="Purple Flower" type="button">
+        <img src="assets/decor_flower_purple.png" alt="Purple Flower">
+      </button>
+    </div>
+
+    <div id="controls">
+      <button id="doneBtn" type="button">Done</button>
+      <button id="resetBtn" type="button">Reset Test</button>
+    </div>
+  </div>
+
+  <!-- Reused as the stand-in "finished design" shape. -->
+  <img id="src-flower" src="assets/flower_stencil.png" alt="" hidden>
+
+  <script src="js/decoration-test.js"></script>
+</body>
+</html>
