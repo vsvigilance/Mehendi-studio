@@ -41,12 +41,12 @@
      date on every future deploy forces every visitor's browser to fetch
      fresh copies instead of reusing old ones — find-and-replace
      "20260730" with the new date across this file when you deploy. -->
-<link rel="stylesheet" href="css/style.css?v=20260730e">
-<link rel="stylesheet" href="css/text-stencil.css?v=20260730e">
-<link rel="stylesheet" href="css/dry-scrape.css?v=20260730e">
-<link rel="stylesheet" href="css/full-flow.css?v=20260730e">
-<link rel="stylesheet" href="css/decoration.css?v=20260730e">
-<link rel="stylesheet" href="css/story.css?v=20260730e">
+<link rel="stylesheet" href="css/style.css?v=20260730f">
+<link rel="stylesheet" href="css/text-stencil.css?v=20260730f">
+<link rel="stylesheet" href="css/dry-scrape.css?v=20260730f">
+<link rel="stylesheet" href="css/full-flow.css?v=20260730f">
+<link rel="stylesheet" href="css/decoration.css?v=20260730f">
+<link rel="stylesheet" href="css/story.css?v=20260730f">
 </head>
 <body>
 
@@ -166,6 +166,26 @@
     </div>
 
     <div id="stageWrap">
+      <!-- Purely ambient, decorative "gold dust" specks — 8 identical
+           empty spans, individually positioned/timed via nth-child
+           selectors in style.css (see .sparkle). pointer-events:none so
+           they can never intercept a tap meant for drawing/scraping.
+           Sit behind #stage in paint order (earlier in the DOM, both at
+           the default z-index) so they read as light drifting around
+           the hand, not on top of it — keeps the hand the visual focus,
+           same "hero is the hand" rule as everything else on this
+           stage. Part of the cinematic ambiance pass alongside the
+           breathing glow and vignette, both pure CSS on #stageWrap's
+           ::before/::after. -->
+      <span class="sparkle" aria-hidden="true"></span>
+      <span class="sparkle" aria-hidden="true"></span>
+      <span class="sparkle" aria-hidden="true"></span>
+      <span class="sparkle" aria-hidden="true"></span>
+      <span class="sparkle" aria-hidden="true"></span>
+      <span class="sparkle" aria-hidden="true"></span>
+      <span class="sparkle" aria-hidden="true"></span>
+      <span class="sparkle" aria-hidden="true"></span>
+
       <div id="stage">
         <div id="artboard">
           <!-- Sits behind the hand (first child, before #palm) so it
@@ -483,6 +503,6 @@
   <img id="src-jash" src="assets/text_jash.png" alt="" hidden>
   <img id="src-vine_bloom" src="assets/vine_bloom.png" alt="" hidden>
 
-  <script src="js/main.js?v=20260730e"></script>
+  <script src="js/main.js?v=20260730f"></script>
 </body>
 </html>
