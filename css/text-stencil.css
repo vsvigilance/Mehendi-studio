@@ -43,13 +43,6 @@
   pointer-events: none;
 }
 
-.pickerTitle {
-  font-size: clamp(17px, 4.5vw, 21px);
-  font-weight: 700;
-  color: var(--stencil-accent-dark);
-  text-align: center;
-}
-
 /* Row holding the persistent coin total + the story-replay button — a
    small unobtrusive corner cluster (same "quiet corner" treatment as
    #muteBtn, just the opposite corner) rather than headline elements,
@@ -250,12 +243,32 @@
 }
 
 /* ---- Test-harness controls ---- */
+/* Phone portrait: #toolbarPrimary (full-flow.css) now docks as its own
+   fixed bar at the literal bottom edge of the screen, floating above
+   whatever sits underneath in normal flow — including this row, which is
+   an ordinary in-flow flex child of #app. Its own original 16px bottom
+   padding wasn't enough to clear the toolbar's real rendered height
+   (60px: 46px button + 6px/8px top/bottom padding, same number used for
+   #toolbarSecondary's own "sit above the toolbar" offset), so "Change
+   Design" was rendering underneath the fixed toolbar and getting visually
+   covered by it. 76px = that 60px plus the original 16px gap, so the
+   button clears the toolbar with the same breathing room it always had. */
 #controls {
   flex: 0 0 auto;
   display: flex;
   justify-content: center;
   gap: 12px;
-  padding: 6px 20px calc(16px + env(safe-area-inset-bottom));
+  padding: 6px 20px calc(76px + env(safe-area-inset-bottom));
+}
+
+/* Tablet portrait: the toolbar becomes two columns flanking the hand
+   instead of a fixed bottom bar (see full-flow.css's min-width media
+   query), so there's nothing here to clear — back to the original,
+   smaller bottom padding. */
+@media (orientation: portrait) and (min-width: 700px) {
+  #controls {
+    padding-bottom: calc(16px + env(safe-area-inset-bottom));
+  }
 }
 
 /* Was previously toggled via a direct style.display swap in main.js —
