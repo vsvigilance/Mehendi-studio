@@ -22,12 +22,12 @@
      date on every future deploy forces every visitor's browser to fetch
      fresh copies instead of reusing old ones — find-and-replace
      "20260730" with the new date across this file when you deploy. -->
-<link rel="stylesheet" href="css/style.css?v=20260730b">
-<link rel="stylesheet" href="css/text-stencil.css?v=20260730b">
-<link rel="stylesheet" href="css/dry-scrape.css?v=20260730b">
-<link rel="stylesheet" href="css/full-flow.css?v=20260730b">
-<link rel="stylesheet" href="css/decoration.css?v=20260730b">
-<link rel="stylesheet" href="css/story.css?v=20260730b">
+<link rel="stylesheet" href="css/style.css?v=20260730c">
+<link rel="stylesheet" href="css/text-stencil.css?v=20260730c">
+<link rel="stylesheet" href="css/dry-scrape.css?v=20260730c">
+<link rel="stylesheet" href="css/full-flow.css?v=20260730c">
+<link rel="stylesheet" href="css/decoration.css?v=20260730c">
+<link rel="stylesheet" href="css/story.css?v=20260730c">
 </head>
 <body>
 
@@ -235,6 +235,22 @@
           <button id="zoomInBtn" type="button" aria-label="Zoom in">+</button>
           <button id="zoomOutBtn" type="button" aria-label="Zoom out" disabled>&minus;</button>
         </div>
+
+        <!-- Magic Trace Assist — a small on/off switch shown only while
+             tracing a real stencil design (hidden for Draw Now, which has
+             no guide to snap toward). Same "sibling of #artboard, not a
+             child" reasoning as #zoomControls above, so it never scales/
+             pans with the artboard. See updateTraceAssistVisibility() and
+             the Trace Assist section of js/main.js for the snapping logic
+             itself. Off by default, remembered via localStorage once she
+             changes it (jiyanaMehendiTraceAssist) — same preference
+             pattern as the mute button/coin total/story-seen flag. -->
+        <div id="traceAssistRow" class="hidden">
+          <span id="traceAssistLabel">✨ Trace Assist</span>
+          <button id="traceAssistToggle" type="button" role="switch" aria-checked="false" aria-label="Toggle Trace Assist">
+            <span class="switchKnob"></span>
+          </button>
+        </div>
       </div>
     </div>
 
@@ -403,6 +419,6 @@
   <img id="src-jash" src="assets/text_jash.png" alt="" hidden>
   <img id="src-vine_bloom" src="assets/vine_bloom.png" alt="" hidden>
 
-  <script src="js/main.js?v=20260730b"></script>
+  <script src="js/main.js?v=20260730c"></script>
 </body>
 </html>
