@@ -22,14 +22,25 @@
      date on every future deploy forces every visitor's browser to fetch
      fresh copies instead of reusing old ones — find-and-replace
      "20260730" with the new date across this file when you deploy. -->
-<link rel="stylesheet" href="css/style.css?v=20260730d">
-<link rel="stylesheet" href="css/text-stencil.css?v=20260730d">
-<link rel="stylesheet" href="css/dry-scrape.css?v=20260730d">
-<link rel="stylesheet" href="css/full-flow.css?v=20260730d">
-<link rel="stylesheet" href="css/decoration.css?v=20260730d">
-<link rel="stylesheet" href="css/story.css?v=20260730d">
+<link rel="stylesheet" href="css/style.css?v=20260730e">
+<link rel="stylesheet" href="css/text-stencil.css?v=20260730e">
+<link rel="stylesheet" href="css/dry-scrape.css?v=20260730e">
+<link rel="stylesheet" href="css/full-flow.css?v=20260730e">
+<link rel="stylesheet" href="css/decoration.css?v=20260730e">
+<link rel="stylesheet" href="css/story.css?v=20260730e">
 </head>
 <body>
+
+  <!-- This game is portrait-only by design (the hero hand artwork, every
+       size calculation, and the new beside-the-hand toolbar layout below
+       are all built around a tall screen). Rather than half-support a
+       cramped landscape mode, #app is hidden and this simple prompt is
+       shown instead whenever the device is rotated — pure CSS, no JS
+       needed (see the "orientation: landscape" rule in style.css). -->
+  <div id="rotatePrompt">
+    <span class="rotatePromptIcon">📱</span>
+    <p>Turn your device back to portrait to keep playing</p>
+  </div>
 
   <!-- Jiyana's Mehendi Studio — the real, playable game.
 
@@ -252,60 +263,82 @@
           </button>
         </div>
       </div>
+
+      <!-- Toolbar, split into two groups so nothing ever needs
+           horizontal scrolling to reach (the old single 12-button row
+           did). Both are siblings of #stage, not children of it — same
+           "must never scale/pan with the zoomed artboard" reasoning as
+           #zoomControls above, PLUS #stage itself carries a CSS
+           transform (--hand-lift) which would trap position:fixed
+           descendants; sitting outside #stage avoids that entirely so
+           #toolbarPrimary can dock to the real screen edge on a phone.
+           See css/full-flow.css for how each is positioned per screen
+           size — the buttons/logic themselves are unchanged from before.
+
+           #toolbarPrimary: Cone/Toothpick/Dot/Undo/Clear/Done — the
+           ones she reaches for constantly. Always visible the instant
+           tracing starts, on every portrait screen size.
+           #toolbarSecondary: Ruler/Curve/Circle/Paisley/Shape Pencil/
+           Eraser — reached for less often. Always visible beside the
+           hand on a tablet (there's room); tucked behind the "More
+           tools" toggle in #toolbarPrimary on a phone (there isn't). -->
+      <div id="toolbarPrimary">
+        <button class="toolBtn tool-select active" data-tool="cone" title="Cone" type="button">
+          <img src="assets/icon_cone.png" alt="Cone">
+        </button>
+        <button class="toolBtn tool-select iconOnly" data-tool="toothpick" title="Toothpick" type="button">
+          <img src="assets/icon_toothpick.png" alt="Toothpick">
+        </button>
+        <button class="toolBtn tool-select iconOnly" data-tool="dot" title="Dotting Tool" type="button">
+          <img src="assets/icon_dotting.png" alt="Dotting Tool">
+        </button>
+        <button id="undoBtn" class="toolBtn" title="Undo" type="button" disabled>
+          <img src="assets/icon_undo.png" alt="Undo">
+        </button>
+        <button id="iconClearBtn" class="toolBtn" title="Clear" type="button">
+          <img src="assets/icon_clear.png" alt="Clear">
+        </button>
+        <button id="iconDoneBtn" class="toolBtn" title="Done" type="button">
+          <img src="assets/icon_done.png" alt="Done">
+        </button>
+        <!-- Phone-portrait only (hidden on tablet, where #toolbarSecondary
+             is already visible beside the hand — see full-flow.css).
+             Toggles #toolbarSecondary's drawer open/closed. -->
+        <button id="moreToolsBtn" class="toolBtn iconOnly" title="More tools" type="button" aria-expanded="false" aria-controls="toolbarSecondary">
+          <span class="moreToolsGlyph">⋯</span>
+        </button>
+      </div>
+
+      <div id="toolbarSecondary">
+        <button class="toolBtn tool-select iconOnly" data-tool="ruler" title="Ruler" type="button">
+          <img src="assets/icon_ruler.png" alt="Ruler">
+        </button>
+        <button class="toolBtn tool-select iconOnly" data-tool="curve" title="Curve Guide" type="button">
+          <img src="assets/icon_curve.png" alt="Curve Guide">
+        </button>
+        <button class="toolBtn tool-select iconOnly" data-tool="circle" title="Circle Stamp" type="button">
+          <img src="assets/icon_circle_stamp.png" alt="Circle Stamp">
+        </button>
+        <button class="toolBtn tool-select" data-tool="paisley" title="Paisley Stamp" type="button">
+          <img src="assets/icon_paisley.png" alt="Paisley Stamp">
+        </button>
+        <!-- No image asset — code-generated shape, drawn straight from
+             canvas paths so it stays crisp at any size (see
+             SHAPE_PENCIL_PATHS in js/main.js). Icon is a simple filled
+             star, matching the gold/cream look of every other iconOnly
+             toolbar button. -->
+        <button class="toolBtn tool-select iconOnly" data-tool="shapePencil" title="Shape Pencil" type="button">
+          <svg viewBox="0 0 44 44" class="toolGlyph" aria-hidden="true">
+            <polygon points="22,4 26.5,17 40,17 29,25.5 33,39 22,30.5 11,39 15,25.5 4,17 17.5,17"></polygon>
+          </svg>
+        </button>
+        <button class="toolBtn tool-select iconOnly" data-tool="eraser" title="Eraser" type="button">
+          <img src="assets/icon_eraser.png" alt="Eraser">
+        </button>
+      </div>
     </div>
 
     <div id="hint" class="hint"></div>
-
-    <!-- Toolbar: Cone/Toothpick/Dotting tool/Ruler/Curve guide/Circle
-         stamp/Paisley stamp/Eraser are a toggle group (exactly one
-         active at a time); Undo/Clear/Done are actions. Only shown
-         during the 'tracing' phase. -->
-    <div id="toolbar">
-      <button class="toolBtn tool-select active" data-tool="cone" title="Cone" type="button">
-        <img src="assets/icon_cone.png" alt="Cone">
-      </button>
-      <button class="toolBtn tool-select iconOnly" data-tool="toothpick" title="Toothpick" type="button">
-        <img src="assets/icon_toothpick.png" alt="Toothpick">
-      </button>
-      <button class="toolBtn tool-select iconOnly" data-tool="dot" title="Dotting Tool" type="button">
-        <img src="assets/icon_dotting.png" alt="Dotting Tool">
-      </button>
-      <button class="toolBtn tool-select iconOnly" data-tool="ruler" title="Ruler" type="button">
-        <img src="assets/icon_ruler.png" alt="Ruler">
-      </button>
-      <button class="toolBtn tool-select iconOnly" data-tool="curve" title="Curve Guide" type="button">
-        <img src="assets/icon_curve.png" alt="Curve Guide">
-      </button>
-      <button class="toolBtn tool-select iconOnly" data-tool="circle" title="Circle Stamp" type="button">
-        <img src="assets/icon_circle_stamp.png" alt="Circle Stamp">
-      </button>
-      <button class="toolBtn tool-select" data-tool="paisley" title="Paisley Stamp" type="button">
-        <img src="assets/icon_paisley.png" alt="Paisley Stamp">
-      </button>
-      <!-- No image asset — code-generated shape, drawn straight from
-           canvas paths so it stays crisp at any size (see
-           SHAPE_PENCIL_PATHS in js/main.js). Icon is a simple filled
-           star, matching the gold/cream look of every other iconOnly
-           toolbar button. -->
-      <button class="toolBtn tool-select iconOnly" data-tool="shapePencil" title="Shape Pencil" type="button">
-        <svg viewBox="0 0 44 44" class="toolGlyph" aria-hidden="true">
-          <polygon points="22,4 26.5,17 40,17 29,25.5 33,39 22,30.5 11,39 15,25.5 4,17 17.5,17"></polygon>
-        </svg>
-      </button>
-      <button class="toolBtn tool-select iconOnly" data-tool="eraser" title="Eraser" type="button">
-        <img src="assets/icon_eraser.png" alt="Eraser">
-      </button>
-      <div class="toolbarDivider"></div>
-      <button id="undoBtn" class="toolBtn" title="Undo" type="button" disabled>
-        <img src="assets/icon_undo.png" alt="Undo">
-      </button>
-      <button id="iconClearBtn" class="toolBtn" title="Clear" type="button">
-        <img src="assets/icon_clear.png" alt="Clear">
-      </button>
-      <button id="iconDoneBtn" class="toolBtn" title="Done" type="button">
-        <img src="assets/icon_done.png" alt="Done">
-      </button>
-    </div>
 
     <!-- Shown only while the Shape Pencil tool is selected during
          tracing (see setTool() in js/main.js). Pick which of the 5
@@ -375,6 +408,18 @@
       <button class="toolBtn iconOnly decorBtn" data-item="flower_purple" title="Purple Flower" type="button">
         <img src="assets/decor_flower_purple.png" alt="Purple Flower">
       </button>
+      <button class="toolBtn iconOnly decorBtn" data-item="moon_silver" title="Moon" type="button">
+        <img src="assets/decor_moon_silver.png" alt="Moon">
+      </button>
+      <button class="toolBtn iconOnly decorBtn" data-item="pearls_white" title="Pearls" type="button">
+        <img src="assets/decor_pearls_white.png" alt="Pearls">
+      </button>
+      <button class="toolBtn iconOnly decorBtn" data-item="butterfly_blue" title="Butterfly" type="button">
+        <img src="assets/decor_butterfly_blue.png" alt="Butterfly">
+      </button>
+      <button class="toolBtn iconOnly decorBtn" data-item="leaf_gold" title="Gold Leaf" type="button">
+        <img src="assets/decor_leaf_gold.png" alt="Gold Leaf">
+      </button>
     </div>
 
     <div id="decorControls" class="hidden">
@@ -419,6 +464,6 @@
   <img id="src-jash" src="assets/text_jash.png" alt="" hidden>
   <img id="src-vine_bloom" src="assets/vine_bloom.png" alt="" hidden>
 
-  <script src="js/main.js?v=20260730d"></script>
+  <script src="js/main.js?v=20260730e"></script>
 </body>
 </html>
