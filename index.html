@@ -4,6 +4,25 @@
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1, user-scalable=no, viewport-fit=cover">
 <title>Jiyana's Mehendi Studio</title>
+
+<!-- Add-to-Home-Screen polish: lets the game be added to a phone/tablet
+     home screen with its own icon and open full-screen (no browser
+     address bar), like a real installed app rather than a bookmark.
+     manifest.json + the icon PNGs live in assets/ and were generated
+     from the production mehendi_cone.png art (see GAME_SPEC.md §4).
+     theme-color matches --bg-mid from style.css so the OS status bar /
+     task switcher / splash background blend with the app's own warm
+     backdrop instead of showing a jarring default black or white. -->
+<link rel="manifest" href="manifest.json">
+<meta name="theme-color" content="#f8e8d2">
+<link rel="apple-touch-icon" href="assets/apple-touch-icon.png">
+<link rel="icon" href="assets/favicon-32.png" sizes="32x32" type="image/png">
+<!-- iOS ignores manifest.json's display:standalone — these two tags are
+     the actual mechanism that makes "Add to Home Screen" open full-screen
+     on iPhone/iPad instead of inside Safari's browser chrome. -->
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+<meta name="apple-mobile-web-app-title" content="Mehendi Studio">
 <!-- Rounded, friendly "storybook" display font — used only for the story
      intro's captions/speech bubbles (see css/story.css), not the rest of
      the game's UI, so this one addition can't accidentally change any
