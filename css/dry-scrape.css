@@ -292,15 +292,18 @@
   opacity: 1;
 }
 
-/* ---- Test-harness controls ---- */
-#controls {
-  flex: 0 0 auto;
-  display: flex;
-  justify-content: center;
-  gap: 12px;
-  padding: 6px 20px calc(16px + env(safe-area-inset-bottom));
-}
-
+/* ---- Test-harness controls ----
+   #controls' own box layout (flex/display/justify-content/gap/padding) is
+   owned by text-stencil.css, not here — this file originally duplicated
+   it (leftover from dry-scrape.css's own isolated test-harness page,
+   before consolidation into the real game), and because this file loads
+   after text-stencil.css in index.html, its identical-specificity copy
+   was silently winning the cascade and overriding text-stencil.css's own
+   #controls padding — the actual cause of the "Change Design" button
+   being covered by the toolbar (see GAME_SPEC.md §4.3.3). Removed rather
+   than kept in sync, so this landmine can't reappear the next time only
+   one of the two copies gets edited. Button appearance (#controls button
+   and friends, right below) is untouched. */
 #controls button {
   font-family: inherit;
   font-size: 14px;
