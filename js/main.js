@@ -91,6 +91,11 @@
   const zoomInBtn = document.getElementById('zoomInBtn');
   const zoomOutBtn = document.getElementById('zoomOutBtn');
 
+  // Magic Trace Assist — see the dedicated section near the M1 draw
+  // engine below for the snapping logic itself.
+  const traceAssistRow = document.getElementById('traceAssistRow');
+  const traceAssistToggle = document.getElementById('traceAssistToggle');
+
   // Reward moment — stars + coin count-up, shown only for stencil-based
   // completions (see playRewardSequence()/onDone()).
   const coinBadge = document.getElementById('coinBadge');
@@ -340,6 +345,48 @@
   document.addEventListener('click', (e) => {
     if (e.target.closest('button, .pickerCard')) playClickSound();
   });
+
+  /* =====================================================================
+     MAGIC TRACE ASSIST — an optional gentle "snap toward the guide"
+     feel for the Cone/Toothpick freehand tools only (stamps place a
+     fixed shape with nothing to snap; Ruler/Curve already have their own
+     precise press-drag-release model; Eraser removes ink rather than
+     tracing it). Off by default, remembered per browser once she changes
+     it — same localStorage-preference pattern as SOUND_MUTE_KEY/
+     COIN_TOTAL_KEY/STORY_SEEN_KEY above. Star/coin scoring is completely
+     unaffected either way (explicit product decision — see GAME_SPEC.md)
+     since it's still coverage-based, not accuracy-based, and this game's
+     scoring has always been generous rather than punishing.
+
+     The actual snapping field (buildTraceAssistField/applyTraceAssist)
+     lives further down, right after the stencil-guide section, since it
+     needs bakeStencilGuide()'s output (stencilCanvas) to scan — this
+     block is just the on/off state + UI, kept near the other simple
+     preference toggles for consistency.
+     ===================================================================== */
+  const TRACE_ASSIST_KEY = 'jiyanaMehendiTraceAssist';
+  let traceAssistOn = localStorage.getItem(TRACE_ASSIST_KEY) === '1';
+
+  function setTraceAssist(on) {
+    traceAssistOn = on;
+    traceAssistToggle.classList.toggle('on', on);
+    traceAssistToggle.setAttribute('aria-checked', on ? 'true' : 'false');
+    localStorage.setItem(TRACE_ASSIST_KEY, on ? '1' : '0');
+  }
+  setTraceAssist(traceAssistOn); // reflect whatever was remembered from last time
+
+  traceAssistToggle.addEventListener('click', () => setTraceAssist(!traceAssistOn));
+
+  // Shown only while actually tracing a real stencil design — hidden for
+  // Draw Now (activeDesign null, nothing to snap toward) and every other
+  // phase. Called from updateControlsForPhase() below, which already
+  // runs after every real phase transition including selectDesign()/
+  // startFreehand() (both call it at the end), so no separate call site
+  // is needed the way updateShapeTrayVisibility() needs one from setTool()
+  // too — activeDesign only ever changes alongside a phase change here.
+  function updateTraceAssistVisibility() {
+    setPanelVisible(traceAssistRow, phase === 'tracing' && !!activeDesign);
+  }
 
   const PALM_ASPECT = 956 / 1489;
 
@@ -707,7 +754,151 @@
     }
     destroyStencilAdjust();
     bakeStencilGuide();
+    buildTraceAssistField();
     setHint(defaultTracingHint());
+  }
+
+  /* =====================================================================
+     MAGIC TRACE ASSIST — the snapping field itself. stencilCanvas holds
+     only pixels, not a stored path, so "how close is the nearest bit of
+     guide line, and which way is it" isn't something we can just look
+     up — it has to be computed. Built once, right when the guide locks
+     (and again on resize/orientation-change, same trigger as
+     bakeStencilGuide() itself), NOT per frame: scan the locked guide
+     down to a small grid, then run a cheap two-pass nearest-feature scan
+     (a standard technique for this — propagate the nearest known guide
+     cell to its neighbors, forward then backward across the grid) so
+     every cell ends up knowing the nearest guide cell and its true
+     straight-line distance to it. A per-frame brute-force scan over
+     every guide pixel would be far too slow for something running on
+     every drawn point; this reduces it to one small one-time pass.
+     ===================================================================== */
+  const ASSIST_GRID_W = 80; // low-res on purpose — this only needs to nudge a direction, not trace pixel-perfectly
+  const ASSIST_CAPTURE_RADIUS_NORM = 0.05; // how far (as a fraction of artboard width) the pull reaches before fading to zero
+  const ASSIST_MAX_PULL = 0.85; // strength right on top of the guide — kept just under 1 so it still reads as "pulled toward," not "teleported onto"
+
+  let traceAssistField = null; // { w, h, dist: Float32Array, nearX: Float32Array, nearY: Float32Array } in grid-cell units
+
+  function buildTraceAssistField() {
+    traceAssistField = null;
+    if (!activeDesign || !cssW || !cssH) return;
+
+    const w = ASSIST_GRID_W;
+    const h = Math.max(1, Math.round(w * (cssH / cssW)));
+    const small = document.createElement('canvas');
+    small.width = w;
+    small.height = h;
+    const sctx = small.getContext('2d', { willReadFrequently: true });
+    sctx.clearRect(0, 0, w, h);
+    sctx.drawImage(stencilCanvas, 0, 0, w, h);
+
+    let data;
+    try {
+      data = sctx.getImageData(0, 0, w, h).data;
+    } catch (err) {
+      return; // file:// SecurityError — same fail-safe as countCoverage()/computeGuideCoverageRatio(); Assist just won't engage
+    }
+
+    const cellCount = w * h;
+    const INF = 1e9;
+    const dist = new Float32Array(cellCount).fill(INF);
+    const nearX = new Float32Array(cellCount);
+    const nearY = new Float32Array(cellCount);
+    let guidePixelCount = 0;
+
+    for (let y = 0; y < h; y++) {
+      for (let x = 0; x < w; x++) {
+        const idx = y * w + x;
+        if (data[idx * 4 + 3] > GUIDE_ALPHA_THRESHOLD) {
+          dist[idx] = 0;
+          nearX[idx] = x;
+          nearY[idx] = y;
+          guidePixelCount++;
+        }
+      }
+    }
+    if (guidePixelCount === 0) return; // shouldn't happen for a real design, but fail safe rather than divide-by-nothing later
+
+    // Pulls a neighbor's already-known nearest guide cell across to the
+    // current cell if that would be closer than what the current cell
+    // has found so far. Each relax() call only ever keeps or improves a
+    // cell's answer, never worsens it, so repeating the sweep is always
+    // safe — a SINGLE forward+backward sweep measurably mis-locates the
+    // nearest point on curved guide shapes (verified with a Node script
+    // comparing against a brute-force scan: ~1.1 grid-cell error on a
+    // plain circle, since one pass can't fully propagate around a curve
+    // from every direction). Mehendi designs are almost entirely curves
+    // (petals, feathers, vines), so this isn't an edge case here — it's
+    // the common case. 3 total sweeps brought the same test to exact
+    // (0 error) on a circle and ~0.03 cells on an S-curve; only an
+    // unrealistically tight spiral (finer detail than any real stencil)
+    // didn't fully converge, and even that residual is a small fraction
+    // of ASSIST_CAPTURE_RADIUS_NORM. This grid is tiny (a few thousand
+    // cells) and only rebuilt once per design lock/resize, never per
+    // frame, so 3 sweeps costs nothing worth worrying about.
+    function relax(x, y, nx, ny) {
+      if (nx < 0 || nx >= w || ny < 0 || ny >= h) return;
+      const nIdx = ny * w + nx;
+      if (dist[nIdx] === INF) return;
+      const idx = y * w + x;
+      const cx = nearX[nIdx];
+      const cy = nearY[nIdx];
+      const d = Math.hypot(cx - x, cy - y);
+      if (d < dist[idx]) {
+        dist[idx] = d;
+        nearX[idx] = cx;
+        nearY[idx] = cy;
+      }
+    }
+
+    const ASSIST_FIELD_SWEEPS = 3;
+    for (let pass = 0; pass < ASSIST_FIELD_SWEEPS; pass++) {
+      for (let y = 0; y < h; y++) {
+        for (let x = 0; x < w; x++) {
+          relax(x, y, x - 1, y);
+          relax(x, y, x, y - 1);
+          relax(x, y, x - 1, y - 1);
+          relax(x, y, x + 1, y - 1);
+        }
+      }
+      for (let y = h - 1; y >= 0; y--) {
+        for (let x = w - 1; x >= 0; x--) {
+          relax(x, y, x + 1, y);
+          relax(x, y, x, y + 1);
+          relax(x, y, x + 1, y + 1);
+          relax(x, y, x - 1, y + 1);
+        }
+      }
+    }
+
+    traceAssistField = { w, h, dist, nearX, nearY };
+  }
+
+  // Called every frame a point is about to be drawn (see frame() below).
+  // Returns the point unchanged whenever Assist shouldn't apply — off,
+  // wrong tool, no field built, or simply too far from the guide to pull
+  // at all — so this is always safe to call unconditionally.
+  function applyTraceAssist(point) {
+    if (!traceAssistOn || !traceAssistField) return point;
+    if (currentTool !== 'cone' && currentTool !== 'toothpick') return point;
+
+    const { w, h, dist, nearX, nearY } = traceAssistField;
+    const gx = Math.min(w - 1, Math.max(0, Math.round(point.x * w)));
+    const gy = Math.min(h - 1, Math.max(0, Math.round(point.y * h)));
+    const idx = gy * w + gx;
+    const d = dist[idx];
+    if (d === undefined || d >= 1e9) return point;
+
+    const distNorm = d / w; // grid cell distance -> normalized (0-1 of artboard width) distance
+    if (distNorm >= ASSIST_CAPTURE_RADIUS_NORM) return point;
+
+    const targetX = nearX[idx] / w;
+    const targetY = nearY[idx] / h;
+    const t = (1 - distNorm / ASSIST_CAPTURE_RADIUS_NORM) * ASSIST_MAX_PULL;
+    return {
+      x: lerp(point.x, targetX, t),
+      y: lerp(point.y, targetY, t),
+    };
   }
 
   /* ---------------- Phase state machine ----------------
@@ -890,6 +1081,7 @@
     const zoomable = phase === 'tracing' || phase === 'scraping' || phase === 'decorating';
     setPanelVisible(zoomControls, zoomable);
     resetZoom();
+    updateTraceAssistVisibility();
     // Also gated here (not just from setTool()) because leaving the
     // 'tracing' phase (e.g. pressing Done) doesn't reset currentTool —
     // without this, the tray could stay visible into drying/scraping if
@@ -919,6 +1111,7 @@
     // stencilCanvas stays empty until lockStencilGuide() bakes it (see
     // that section, further up this file).
     stencilCtx.clearRect(0, 0, cssW, cssH);
+    traceAssistField = null; // stale field from whatever was previously active — rebuilt fresh once THIS guide locks
     createStencilAdjust();
     setTool('cone');
     updateControlsForPhase();
@@ -943,6 +1136,7 @@
     lockedGuideTransform = null;
     stencilGuideLocked = true;
     stencilCtx.clearRect(0, 0, cssW, cssH);
+    traceAssistField = null; // no guide in Draw Now mode — nothing to snap toward
     setTool('cone');
     setHint(defaultTracingHint());
     updateControlsForPhase();
@@ -954,6 +1148,7 @@
     destroyStencilAdjust();
     lockedGuideTransform = null;
     stencilGuideLocked = true;
+    traceAssistField = null;
     phase = 'picking';
     activeDesign = null;
     picker.classList.remove('hidden');
@@ -1271,6 +1466,7 @@
       // resize/orientation-change never reverts her adjustment.
       if (stencilGuideLocked) {
         bakeStencilGuide();
+        buildTraceAssistField(); // guide's pixel positions just changed with the resize — the snap field must match
       } else {
         positionStencilAdjust();
       }
@@ -2090,8 +2286,19 @@
       };
 
       const touchLift = currentPointerType === 'touch' ? TOUCH_OFFSET_NORM : 0;
-      const inkPoint = { x: smoothedPoint.x, y: smoothedPoint.y - touchLift };
+      // Trace Assist is applied here, AFTER the touch-offset lift and
+      // BEFORE this point is used for either the on-screen cone position
+      // or the actual ink — so the visible tool and the drawn line always
+      // move together (the cone visually gets pulled toward the guide
+      // too), rather than the ink snapping while the cone appears to lag
+      // behind or ignore it. See applyTraceAssist() near the stencil-
+      // guide section for the actual snapping math.
+      const inkPoint = applyTraceAssist({ x: smoothedPoint.x, y: smoothedPoint.y - touchLift });
 
+      // Deliberately computed from the RAW smoothed motion, not the
+      // (possibly snapped) inkPoint above — the cone's steering tilt
+      // should reflect how her hand is actually moving, not get thrown
+      // off by an assist pull that has nothing to do with real velocity.
       const velX = (smoothedPoint.x - prevSmoothed.x) / Math.max(dt, 0.001);
       const targetAngle =
         BASE_TILT_DEG + Math.max(-MAX_TILT_DEG, Math.min(MAX_TILT_DEG, velX * TILT_GAIN));
@@ -2370,6 +2577,7 @@
     stencilGuideLocked = true;
     lockedGuideTransform = null;
     stencilCtx.clearRect(0, 0, cssW, cssH);
+    traceAssistField = null; // guide is gone for the rest of this design — nothing left to snap toward
 
     buildRevealLayers();
 
