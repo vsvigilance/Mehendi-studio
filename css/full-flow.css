@@ -36,7 +36,8 @@
 #decorControls,
 #finishedPanel,
 #rewardRow,
-#zoomControls {
+#zoomControls,
+#traceAssistRow {
   transition: opacity 200ms ease, transform 200ms ease;
 }
 
@@ -46,9 +47,11 @@
   pointer-events: none;
 }
 
-/* Zoom is a floating corner button, not a bottom bar — sliding it would
-   look like it's escaping its corner, so it only fades. */
-#zoomControls.panelHidden {
+/* Zoom and Trace Assist are both floating corner controls, not bottom
+   bars — sliding either would look like it's escaping its corner, so
+   both only fade. */
+#zoomControls.panelHidden,
+#traceAssistRow.panelHidden {
   transform: none;
 }
 
