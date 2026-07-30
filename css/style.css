@@ -318,13 +318,67 @@ html, body {
   }
 }
 
-/* Landscape phones: shorter viewport height, keep the hand comfortably framed */
-@media (orientation: landscape) {
+/* Tablet portrait: the beside-the-hand toolbar (js/main.js's
+   #toolbarPrimary/#toolbarSecondary, styled in full-flow.css) needs real
+   clearance on each side of #stage to sit in without crowding the hand.
+   85vw/602px (the base rule above) leaves comfortable room on the
+   largest tablets but only ~70px a side on the smallest common ones
+   (744px portrait) — trimmed slightly here for reliable breathing room
+   across the whole tablet range. Same 700px threshold as the toolbar's
+   own breakpoint, for the obvious reason that they have to agree. */
+@media (orientation: portrait) and (min-width: 700px) {
   #stage {
-    /* Only width needs adjusting here now — height already fills
-       whatever's actually available (see the base #stage rule), and
-       the contain-fit math in layoutArtboard() picks whichever
-       dimension is the real limiting one regardless. */
-    width: min(56vw, 602px);
+    width: min(78vw, 560px);
   }
+}
+
+/* This game is portrait-only (see #rotatePrompt below) — the hero hand
+   art, every layout calculation, and the beside-the-hand toolbar are all
+   built around a tall screen, and half-supporting a cramped landscape
+   mode (previously just a small #stage width tweak here) was judged not
+   worth maintaining two real toolbar layouts for. #app is hidden outright
+   in landscape and #rotatePrompt (plain HTML, styled below) takes over
+   instead — simple, and every phone/tablet already handles physical
+   rotation instantly on its own, no JS orientation-lock needed. */
+#rotatePrompt {
+  display: none;
+}
+
+@media (orientation: landscape) {
+  #app {
+    display: none;
+  }
+
+  #rotatePrompt {
+    position: fixed;
+    inset: 0;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    gap: 14px;
+    padding: 40px;
+    text-align: center;
+    background: linear-gradient(180deg, var(--bg-top) 0%, var(--bg-mid) 55%, var(--bg-bot) 100%);
+  }
+}
+
+.rotatePromptIcon {
+  font-size: 48px;
+  /* A plain CSS rotation reads instantly as "turn the device" without
+     needing any extra icon asset. */
+  animation: rotateHint 1800ms ease-in-out infinite;
+}
+
+@keyframes rotateHint {
+  0%, 100% { transform: rotate(0deg); }
+  50% { transform: rotate(-90deg); }
+}
+
+#rotatePrompt p {
+  margin: 0;
+  max-width: 260px;
+  font-size: 16px;
+  font-weight: 600;
+  color: var(--stencil-accent-dark, #7a5330);
 }
