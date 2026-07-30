@@ -28,7 +28,8 @@
    sub-panel INSIDE #finishedPanel that setPanelVisible() shows only for
    stencil-based completions (see playRewardSequence()), same reasoning
    as every other panel here, just nested one level deeper. */
-#toolbar,
+#toolbarPrimary,
+#toolbarSecondary,
 #shapeTray,
 #controls,
 #dryerControls,
@@ -47,11 +48,15 @@
   pointer-events: none;
 }
 
-/* Zoom and Trace Assist are both floating corner controls, not bottom
-   bars — sliding either would look like it's escaping its corner, so
-   both only fade. */
+/* Zoom, Trace Assist, and both toolbar groups are all floating controls
+   now (not one bottom bar) — sliding any of them would look like it's
+   escaping its corner/edge, so all four only fade for the phase-level
+   show/hide. #toolbarSecondary's phone-only drawer open/close (a
+   separate, independent animation — see .open below) still slides. */
 #zoomControls.panelHidden,
-#traceAssistRow.panelHidden {
+#traceAssistRow.panelHidden,
+#toolbarPrimary.panelHidden,
+#toolbarSecondary.panelHidden {
   transform: none;
 }
 
@@ -173,7 +178,8 @@
   box-shadow: 0 3px 8px rgba(122, 83, 48, 0.28);
 }
 
-/* ---- Toolbar (Cone / Toothpick / Dotting tool + Undo / Clear / Done) ----
+/* ---- Toolbar (Cone / Toothpick / Dotting tool + Undo / Clear / Done,
+   plus Ruler / Curve / Circle / Paisley / Shape Pencil / Eraser) ----
    Built for the first time here — toolbar_gameplay_v1.png was only ever
    a reference image before this. Cone/Undo/Clear/Done are square photo
    crops of that reference art (with its own real cream/gold pill
@@ -181,34 +187,182 @@
    Dotting tool are true cutouts with no backdrop of their own, so they
    get a CSS radial-gradient face tuned to match the same cream/gold
    tone sampled from the reference art, keeping all 6 buttons reading as
-   one consistent set despite the mixed origins. */
-/* Now 7 tool-select buttons + divider + 3 action buttons = 10 total,
-   which doesn't reliably fit one row on a phone-width screen. Let the
-   row scroll horizontally rather than shrinking buttons down to the
-   point they're hard to tap accurately — flex-shrink:0 below keeps
-   every button at its full tap-friendly size regardless of how many
-   there are. justify-content switches to flex-start so scrolling has
-   somewhere to go instead of everything staying centered and clipped
-   equally on both sides. */
-#toolbar {
-  flex: 0 0 auto;
+   one consistent set despite the mixed origins.
+
+   Originally one single row of all 12 buttons, which needed horizontal
+   scrolling to reach the far end on a phone — replaced with two groups
+   (#toolbarPrimary: the 6 she reaches for constantly; #toolbarSecondary:
+   the 6 specialty tools) so nothing needs scrolling to reach again. Base
+   rules below are the PHONE layout (mobile-first): #toolbarPrimary docks
+   to the real bottom edge of the screen, #toolbarSecondary is a
+   collapsible drawer just above it, opened via #moreToolsBtn. The
+   min-width media query further down replaces both with two columns
+   flanking the hand on a tablet, where there's room for that beside-the-
+   hand layout the whole redesign was originally asked for. Both groups
+   are positioned relative to the real viewport/#stageWrap, not #stage —
+   #stage carries its own CSS transform (--hand-lift), which would trap
+   position:fixed descendants and stop #toolbarPrimary from reaching the
+   true screen edge on phone; sitting as #stage's sibling avoids that. */
+#toolbarPrimary {
+  position: fixed;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  z-index: 7;
   display: flex;
   align-items: center;
-  justify-content: flex-start;
-  gap: 10px;
-  padding: 4px 16px 10px;
+  justify-content: center;
+  gap: 8px;
+  padding: 6px 14px calc(8px + env(safe-area-inset-bottom));
+  /* Defensive fallback only — 6 buttons at this size fit every real
+     portrait phone width without needing this, but an unusually narrow
+     device scrolls instead of visibly breaking. */
   overflow-x: auto;
   overflow-y: hidden;
   -webkit-overflow-scrolling: touch;
   scrollbar-width: none;
 }
 
-#toolbar::-webkit-scrollbar {
+#toolbarPrimary::-webkit-scrollbar {
   display: none;
 }
 
-#toolbar.hidden {
+#toolbarPrimary.hidden {
   display: none;
+}
+
+/* .toolBtn's real-world default is 58px (see the shared rule further
+   down) — comfortable on a tablet, but 6 of them at that size plus gaps
+   and padding add up to ~416px, wider than every common phone in
+   portrait (checked against 360-430px, the realistic range). Shrunk
+   specifically inside these two groups, on phone only, so the "no
+   scrolling" promise actually holds on a real device rather than just
+   looking right on a wide simulator window — restored to the full 58px
+   on tablet, where there's room to spare (see the min-width media query
+   below). Every other .toolBtn (decor tray, shape tray, etc.) is
+   untouched by this. */
+#toolbarPrimary .toolBtn,
+#toolbarSecondary .toolBtn {
+  width: 46px;
+  height: 46px;
+}
+
+/* The specialty-tools drawer. Closed by default even while the whole
+   toolbar is otherwise visible (phase-level .hidden, handled the same
+   as every other panel, always wins over this) — .open is a second,
+   independent toggle layered on top, set from #moreToolsBtn's click
+   handler in main.js. bottom offset = #toolbarPrimary's real rendered
+   height at its phone size (46px button + 6px/8px top/bottom padding =
+   60px) plus a small 6px gap, so it sits stacked neatly just above it
+   with no overlap and no visible seam. */
+#toolbarSecondary {
+  position: fixed;
+  left: 0;
+  right: 0;
+  bottom: calc(66px + env(safe-area-inset-bottom));
+  z-index: 6;
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  justify-content: center;
+  gap: 10px;
+  padding: 14px 16px;
+  border-radius: 20px 20px 0 0;
+  background: rgba(255, 250, 243, 0.97);
+  box-shadow: 0 -6px 20px rgba(60, 36, 16, 0.18);
+  opacity: 0;
+  transform: translateY(14px);
+  pointer-events: none;
+  transition: opacity 200ms ease, transform 200ms ease;
+}
+
+#toolbarSecondary.open {
+  opacity: 1;
+  transform: translateY(0);
+  pointer-events: auto;
+}
+
+#toolbarSecondary.hidden {
+  display: none;
+}
+
+#moreToolsBtn .moreToolsGlyph {
+  font-size: 26px;
+  font-weight: 700;
+  line-height: 1;
+  color: var(--stencil-accent-dark, #7a5330);
+}
+
+#moreToolsBtn.active {
+  box-shadow: 0 0 0 3px var(--stencil-accent), 0 6px 14px rgba(122, 83, 48, 0.35);
+  transform: scale(1.05);
+}
+
+/* ---- Tablet portrait: flanking columns beside the hand ----
+   700px comfortably separates every real phone (largest common ones
+   top out around 430px wide) from every real tablet (smallest common
+   ones start around 744px in portrait), so there's no awkward
+   in-between size this breakpoint gets wrong. Only applies in portrait
+   — landscape is handled separately (see #rotatePrompt in style.css),
+   so this never has to also account for a short/wide viewport. */
+@media (orientation: portrait) and (min-width: 700px) {
+  #toolbarPrimary,
+  #toolbarSecondary {
+    position: absolute;
+    top: 50%;
+    bottom: auto;
+    left: auto;
+    right: auto;
+    transform: translateY(-50%);
+    flex-direction: column;
+    flex-wrap: nowrap;
+    background: none;
+    box-shadow: none;
+    border-radius: 0;
+    padding: 0;
+    gap: 12px;
+    opacity: 1;
+    pointer-events: auto;
+    overflow: visible;
+  }
+
+  #toolbarPrimary {
+    left: 14px;
+  }
+
+  #toolbarSecondary {
+    right: 14px;
+  }
+
+  /* Restore the full 58px size here — the phone-only shrink above is
+     scoped the same way (container + .toolBtn), so this simply wins by
+     appearing later in the file at matching specificity. */
+  #toolbarPrimary .toolBtn,
+  #toolbarSecondary .toolBtn {
+    width: 58px;
+    height: 58px;
+  }
+
+  /* The generic `.panelHidden` rule (near the top of this file) is a
+     plain class selector, which loses to the plain id selectors above
+     on specificity alone — without this, #toolbarSecondary's phone-
+     default opacity:0 (overridden to 1 above) and #toolbarPrimary would
+     never actually fade during a phase change on tablet. Combined id+
+     class selectors here restore that fade, and keep the vertical
+     centering transform intact while doing it (a bare "reset transform"
+     would otherwise snap the column to the top of #stageWrap for the
+     duration of the fade). */
+  #toolbarPrimary.panelHidden,
+  #toolbarSecondary.panelHidden {
+    opacity: 0;
+    transform: translateY(-50%);
+  }
+
+  /* Always visible on tablet — there's room for both groups beside the
+     hand at once, so the phone-only drawer toggle has nothing to do. */
+  #moreToolsBtn {
+    display: none;
+  }
 }
 
 .toolBtn {
