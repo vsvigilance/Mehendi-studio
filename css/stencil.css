@@ -1,0 +1,65 @@
+/* =========================================================
+   Jiyana's Mehendi Studio — stencil-guide test harness styling
+   Purpose: everything specific to the isolated trace-a-guide
+   test page. Kept out of style.css on purpose, same reasoning
+   as dry-scrape.css — this is an experimental milestone that
+   may still change shape before it's wired into the real game.
+   ========================================================= */
+
+:root {
+  --stencil-accent: #a9713f;
+  --stencil-accent-dark: #7a5330;
+}
+
+/* Sits directly above the palm and below the ink layer. Drawn once
+   (not every frame, since the guide never moves or fades) and clipped
+   to the hand's own silhouette in stencil-test.js, the same technique
+   main.js already uses for the ink layer, so it can never appear to
+   float past the edge of the hand. */
+#stencilCanvas {
+  position: absolute;
+  inset: 0;
+  width: 100%;
+  height: 100%;
+  pointer-events: none;
+}
+
+/* ---- Hint text ---- */
+.hint {
+  flex: 0 0 auto;
+  text-align: center;
+  min-height: 1.4em;
+  padding: 4px 20px 2px;
+  font-size: clamp(13px, 3vw, 15px);
+  font-weight: 600;
+  color: var(--stencil-accent-dark);
+  opacity: 0.85;
+}
+
+/* ---- Test-harness controls ---- */
+#controls {
+  flex: 0 0 auto;
+  display: flex;
+  justify-content: center;
+  gap: 12px;
+  padding: 6px 20px calc(16px + env(safe-area-inset-bottom));
+}
+
+#controls button {
+  font-family: inherit;
+  font-size: 14px;
+  font-weight: 700;
+  border: none;
+  border-radius: 999px;
+  padding: 12px 22px;
+  cursor: pointer;
+  color: #fff;
+  background: var(--stencil-accent);
+  box-shadow: 0 6px 14px rgba(122, 83, 48, 0.28);
+  transition: transform 120ms ease, opacity 200ms ease, box-shadow 120ms ease;
+}
+
+#controls button:active {
+  transform: scale(0.96);
+  box-shadow: 0 3px 8px rgba(122, 83, 48, 0.28);
+}

@@ -1,0 +1,211 @@
+/* =========================================================
+   Jiyana's Mehendi Studio — text-stencil test harness styling
+   Purpose: everything specific to the isolated text-stencil
+   picker + tracing test page. Kept out of style.css on purpose,
+   same reasoning as stencil.css.
+   ========================================================= */
+
+:root {
+  --stencil-accent: #a9713f;
+  --stencil-accent-dark: #7a5330;
+}
+
+#stencilCanvas {
+  position: absolute;
+  inset: 0;
+  width: 100%;
+  height: 100%;
+  pointer-events: none;
+}
+
+/* ---- Design picker ----
+   Two visually distinct sections per Vinit's redesign: a boxed
+   "Templates" panel (2-column grid, so all 6 designs fit without a
+   long scroll) and a separate full-width "Draw Now" photo card below
+   it — no shared list, no ambiguity about which is which. */
+#picker {
+  position: absolute;
+  inset: 0;
+  z-index: 10;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 18px;
+  padding: 24px;
+  background: linear-gradient(180deg, var(--bg-top) 0%, var(--bg-mid) 55%, var(--bg-bot) 100%);
+  opacity: 1;
+  transition: opacity 260ms ease;
+}
+
+#picker.hidden {
+  opacity: 0;
+  pointer-events: none;
+}
+
+.pickerTitle {
+  font-size: clamp(17px, 4.5vw, 21px);
+  font-weight: 700;
+  color: var(--stencil-accent-dark);
+  text-align: center;
+}
+
+/* Boxed panel look — a soft translucent cream card that groups the
+   whole template grid into one clear unit, distinct from the page's
+   own background and from the Draw Now card below it. */
+.pickerPanel {
+  width: min(88vw, 420px);
+  background: rgba(255, 250, 243, 0.55);
+  border-radius: 22px;
+  padding: 14px 12px 12px;
+  box-shadow: 0 8px 20px rgba(122, 83, 48, 0.14);
+  box-sizing: border-box;
+}
+
+.pickerPanelLabel {
+  font-size: 11px;
+  font-weight: 800;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+  color: var(--stencil-accent-dark);
+  opacity: 0.6;
+  margin: 2px 4px 10px;
+}
+
+/* 2 columns instead of one long vertical stack — all 6 designs are
+   visible together (or close to it) without excessive scrolling. */
+#pickerCards {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 10px;
+  width: 100%;
+}
+
+.pickerCard {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 6px;
+  background: #fffaf3;
+  border-radius: 16px;
+  padding: 14px 8px;
+  box-shadow: 0 6px 14px rgba(122, 83, 48, 0.14);
+  cursor: pointer;
+  transition: transform 120ms ease, box-shadow 120ms ease;
+}
+
+.pickerCard:active {
+  transform: scale(0.96);
+  box-shadow: 0 3px 8px rgba(122, 83, 48, 0.14);
+}
+
+.pickerCard img {
+  max-width: 100%;
+  max-height: 54px;
+  -webkit-user-drag: none;
+  user-drag: none;
+}
+
+.pickerCard .pickerLabel {
+  font-size: 12px;
+  font-weight: 700;
+  color: var(--stencil-accent-dark);
+  opacity: 0.8;
+  text-align: center;
+}
+
+/* ---- Draw Now: its own full-width photo card, clearly separate from
+   the Templates panel above rather than a small pill hanging off the
+   bottom of the list. Background is a corner crop of Vinit's new
+   background scene (henna cones/bowl/flowers on the wooden table) —
+   ties the "start drawing" action to the real tools of the craft. A
+   warm gradient sits between the photo and the text so the title stays
+   readable regardless of exactly which part of the photo shows through
+   at a given screen size (see background-position below). */
+#freehandBtn {
+  width: min(88vw, 420px);
+  display: flex;
+  flex-direction: column;
+  align-items: flex-start;
+  justify-content: center;
+  gap: 3px;
+  min-height: 84px;
+  font-family: inherit;
+  text-align: left;
+  border: none;
+  border-radius: 22px;
+  padding: 16px 20px;
+  cursor: pointer;
+  box-sizing: border-box;
+  background:
+    linear-gradient(0deg, rgba(66, 41, 20, 0.62) 0%, rgba(66, 41, 20, 0.32) 55%, rgba(66, 41, 20, 0.12) 100%),
+    url('../assets/draw_now_bg.jpg') center 55% / cover;
+  box-shadow: 0 8px 20px rgba(122, 83, 48, 0.22);
+  transition: transform 120ms ease, box-shadow 120ms ease;
+}
+
+#freehandBtn:active {
+  transform: scale(0.97);
+  box-shadow: 0 4px 10px rgba(122, 83, 48, 0.22);
+}
+
+.freehandTitle {
+  font-size: 18px;
+  font-weight: 800;
+  color: #fff;
+  text-shadow: 0 2px 6px rgba(40, 22, 8, 0.4);
+}
+
+.freehandSub {
+  font-size: 12.5px;
+  font-weight: 600;
+  color: rgba(255, 255, 255, 0.9);
+  text-shadow: 0 1px 5px rgba(40, 22, 8, 0.4);
+}
+
+/* ---- Hint text ---- */
+.hint {
+  flex: 0 0 auto;
+  text-align: center;
+  min-height: 1.4em;
+  padding: 4px 20px 2px;
+  font-size: clamp(13px, 3vw, 15px);
+  font-weight: 600;
+  color: var(--stencil-accent-dark);
+  opacity: 0.85;
+}
+
+/* ---- Test-harness controls ---- */
+#controls {
+  flex: 0 0 auto;
+  display: flex;
+  justify-content: center;
+  gap: 12px;
+  padding: 6px 20px calc(16px + env(safe-area-inset-bottom));
+}
+
+#controls button {
+  font-family: inherit;
+  font-size: 14px;
+  font-weight: 700;
+  border: none;
+  border-radius: 999px;
+  padding: 12px 22px;
+  cursor: pointer;
+  color: #fff;
+  background: var(--stencil-accent);
+  box-shadow: 0 6px 14px rgba(122, 83, 48, 0.28);
+  transition: transform 120ms ease, opacity 200ms ease, box-shadow 120ms ease;
+}
+
+#controls button:active {
+  transform: scale(0.96);
+  box-shadow: 0 3px 8px rgba(122, 83, 48, 0.28);
+}
+
+#changeBtn {
+  background: transparent;
+  color: var(--stencil-accent-dark);
+  box-shadow: inset 0 0 0 2px rgba(122, 83, 48, 0.35);
+}

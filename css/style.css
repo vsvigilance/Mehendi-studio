@@ -1,0 +1,258 @@
+/* =========================================================
+   Jiyana's Mehendi Studio — M0: Hero Palm Stage
+   Purpose: premium, calm studio backdrop that presents the
+   hero hand beautifully and responsively. No interaction yet.
+   ========================================================= */
+
+:root {
+  --bg-top: #fff8ef;
+  --bg-mid: #f8e8d2;
+  --bg-bot: #f0d7b6;
+  --glow-core: rgba(255, 200, 187, 0.32);
+  --glow-mid: rgba(255, 214, 204, 0.14);
+  --shadow-soft: rgba(120, 72, 30, 0.16);
+  --shadow-tight: rgba(120, 72, 30, 0.22);
+
+  /* Shared upward offset so the hand and its glow move together */
+  --hand-lift: -9vh;
+}
+
+* {
+  box-sizing: border-box;
+  -webkit-tap-highlight-color: transparent;
+}
+
+html, body {
+  height: 100%;
+  margin: 0;
+  overscroll-behavior: none;
+  font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
+  background: var(--bg-mid);
+  touch-action: manipulation;
+  -webkit-user-select: none;
+  user-select: none;
+}
+
+#app {
+  position: fixed;
+  inset: 0;
+  display: flex;
+  flex-direction: column;
+  padding: env(safe-area-inset-top) env(safe-area-inset-right)
+           env(safe-area-inset-bottom) env(safe-area-inset-left);
+
+  /* Premium warm studio backdrop — soft vertical gradient */
+  background: linear-gradient(180deg, var(--bg-top) 0%, var(--bg-mid) 55%, var(--bg-bot) 100%);
+}
+
+/* Small, unobtrusive, always on top — corner placement so it never
+   competes with the design/hand for attention, matching "less is more." */
+#muteBtn {
+  position: absolute;
+  top: calc(10px + env(safe-area-inset-top));
+  right: calc(10px + env(safe-area-inset-right));
+  z-index: 20;
+  width: 38px;
+  height: 38px;
+  border: none;
+  border-radius: 50%;
+  font-size: 17px;
+  line-height: 1;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  cursor: pointer;
+  background: rgba(255, 250, 243, 0.7);
+  box-shadow: 0 4px 10px rgba(122, 83, 48, 0.18);
+  opacity: 0.75;
+  transition: transform 120ms ease, opacity 120ms ease;
+}
+
+#muteBtn:active {
+  transform: scale(0.92);
+  opacity: 1;
+}
+
+#stageWrap {
+  flex: 1 1 auto;
+  min-height: 0;
+  position: relative;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+/* Soft ambient glow behind the hand for depth — warm, diffused, barely-there */
+#stageWrap::before {
+  content: "";
+  position: absolute;
+  top: 50%;
+  left: 50%;
+  width: min(100vw, 760px);
+  height: min(100vw, 760px);
+  border-radius: 50%;
+  background: radial-gradient(circle, var(--glow-core) 0%, var(--glow-mid) 45%, rgba(255, 255, 255, 0) 72%);
+  filter: blur(60px);
+  transform: translate(-50%, -50%) translateY(var(--hand-lift));
+  pointer-events: none;
+}
+
+/* Height is 100% of #stageWrap (not a fixed vh fraction) so the artboard
+   only ever claims whatever room is actually left after the hint,
+   toolbar, and controls below it take theirs — see the note above
+   #stageWrap. A hardcoded vh height competed with those for space
+   independently and could push the toolbar off the bottom of a short
+   browser window with nothing to scroll to (found via Vinit's real
+   hands-on test, invisible to this sandbox's PIL/Node-only checks). */
+#stage {
+  position: relative;
+  width: min(85vw, 602px);
+  height: 100%;
+  max-height: 846px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  transform: translateY(var(--hand-lift));
+  /* Clips the artboard when zoomed/panned in — without this, a zoomed
+     artboard would visually spill over the toolbar/hint below it
+     instead of staying within this stage "viewport." See js/main.js
+     zoom section. */
+  overflow: hidden;
+}
+
+/* Small, unobtrusive corner control — stays fixed in place regardless
+   of the artboard's own zoom/pan (it's a sibling of #artboard, not a
+   child, specifically so it's never scaled/moved along with it). */
+#zoomControls {
+  position: absolute;
+  right: 8px;
+  bottom: 8px;
+  z-index: 5;
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+}
+
+#zoomControls.hidden {
+  display: none;
+}
+
+#zoomControls button {
+  width: 36px;
+  height: 36px;
+  border: none;
+  border-radius: 50%;
+  font-size: 19px;
+  font-weight: 700;
+  line-height: 1;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  cursor: pointer;
+  color: var(--stencil-accent-dark, #7a5330);
+  background: rgba(255, 250, 243, 0.85);
+  box-shadow: 0 4px 10px rgba(122, 83, 48, 0.2);
+  transition: transform 120ms ease, opacity 150ms ease;
+}
+
+#zoomControls button:active {
+  transform: scale(0.9);
+}
+
+#zoomControls button:disabled {
+  opacity: 0.35;
+  cursor: default;
+}
+
+/* The artboard is a box locked to the palm artwork's own aspect ratio.
+   Sizing it (not the raw <img>) means the palm image, the ink canvas,
+   and the cone can all share one exact coordinate space — whatever
+   normalized position we compute lands in the same spot on all three.
+
+   Its actual pixel width/height are set by layoutArtboard() in main.js,
+   not by CSS. A plain div has no intrinsic size of its own, and every
+   child in here is position:absolute (so none of them contribute size
+   either) — CSS aspect-ratio can't resolve a box that has neither a
+   definite dimension nor in-flow content to measure, especially inside
+   a centered (non-stretching) flex parent. JS measures #stage directly
+   and computes the contain-fit size instead. */
+#artboard {
+  position: relative;
+  touch-action: none;
+}
+
+#palm {
+  position: absolute;
+  inset: 0;
+  width: 100%;
+  height: 100%;
+  object-fit: contain;
+  -webkit-user-drag: none;
+  user-drag: none;
+  pointer-events: none;
+
+  /* Layered soft drop shadow so the hand feels grounded, not pasted flat */
+  filter:
+    drop-shadow(0 22px 18px var(--shadow-soft))
+    drop-shadow(0 6px 6px var(--shadow-tight));
+
+  /* Gentle entrance — the only motion in M0, tied to the screen appearing */
+  animation: riseIn 700ms cubic-bezier(0.22, 1, 0.36, 1) both;
+}
+
+#inkCanvas {
+  position: absolute;
+  inset: 0;
+  width: 100%;
+  height: 100%;
+  pointer-events: none;
+}
+
+/* coneAnchor is positioned (translated) to the drawing point each frame;
+   cone itself rotates around its nozzle tip inside that anchor. Splitting
+   position and rotation into two elements keeps the pivot math simple
+   and keeps both updates compositor-only (no layout thrash). */
+#coneAnchor {
+  position: absolute;
+  left: 0;
+  top: 0;
+  width: 0;
+  height: 0;
+  pointer-events: none;
+  opacity: 0;
+  transition: opacity 220ms ease;
+}
+
+#coneAnchor.visible {
+  opacity: 1;
+}
+
+#cone {
+  position: absolute;
+  -webkit-user-drag: none;
+  user-drag: none;
+  pointer-events: none;
+  filter: drop-shadow(0 6px 8px rgba(80, 50, 15, 0.28));
+}
+
+@keyframes riseIn {
+  from {
+    opacity: 0;
+    transform: translateY(18px) scale(0.97);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0) scale(1);
+  }
+}
+
+/* Landscape phones: shorter viewport height, keep the hand comfortably framed */
+@media (orientation: landscape) {
+  #stage {
+    /* Only width needs adjusting here now — height already fills
+       whatever's actually available (see the base #stage rule), and
+       the contain-fit math in layoutArtboard() picks whichever
+       dimension is the real limiting one regardless. */
+    width: min(56vw, 602px);
+  }
+}
