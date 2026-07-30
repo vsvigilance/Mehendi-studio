@@ -27,9 +27,11 @@
        purely the final consolidation, plus the one new phase
        (decorating) that connects scraping to the decoration step.
 
-       Coin/star rewards are deliberately left out of this build per
-       Vinit's explicit instruction — that's a separate, still-evolving
-       piece coming as its own follow-up update, not dropped by mistake. -->
+       Coin/star rewards (the "reward moment" — animated stars, coin
+       count-up, confetti timed to the last star, persistent coin total)
+       were deliberately left out of the original consolidation and built
+       later as their own follow-up milestone — see #coinBadge below and
+       the reward-sequence section of js/main.js. -->
 
   <div id="app">
 
@@ -39,6 +41,16 @@
     <button id="muteBtn" type="button" aria-label="Toggle sound">🔊</button>
 
     <div id="picker">
+      <!-- Persistent running total, earned from stencil-based designs
+           only (see js/main.js reward section) — always visible here so
+           it reads as an ongoing collection, not a one-off score she'd
+           forget about between sessions. Updated in place (no re-render
+           needed) whenever coins are awarded. -->
+      <div id="coinBadge">
+        <img src="assets/icon_coin.png" alt="">
+        <span id="coinBadgeTotal">0</span>
+      </div>
+
       <div class="pickerTitle">Choose how to begin</div>
 
       <!-- All 6 stencil designs, in a 2-column grid so they read as one
@@ -141,6 +153,15 @@
               <span class="puff"></span>
             </div>
           </div>
+
+          <!-- Empty until the exact instant scraping finishes (see
+               completeDesign() / spawnConfettiBurst() in main.js), which
+               fills it with a one-shot burst of small colored pieces that
+               animate outward and fade, then remove themselves. Sits as
+               the last child of #artboard so the burst always renders on
+               top of the hand/design/decorations. pointer-events:none so
+               it can never block a tap underneath it. -->
+          <div id="confettiLayer"></div>
         </div>
 
         <!-- Sits outside #artboard on purpose — these are screen
@@ -235,7 +256,7 @@
       <button id="shapeHollowBtn" class="fillToggleBtn" data-fill="hollow" type="button">Outline</button>
     </div>
 
-    <div id="controls">
+    <div id="controls" class="hidden">
       <button id="changeBtn" type="button">Change Design</button>
     </div>
 
@@ -283,23 +304,42 @@
     </div>
 
     <!-- Final screen: shown once decorating is finished (Done tapped).
-         No stars/coins here yet — that reward layer is a separate,
-         still-in-progress piece coming as a follow-up update. This is
-         just a warm, simple "you did it" moment: the completionBurst
-         glow behind the hand + this message, no scoring attached. -->
+         The completionBurst glow behind the hand + "Well done!" always
+         play. #rewardRow (stars + coins) only appears for stencil-based
+         completions — playRewardSequence() in js/main.js leaves it
+         hidden entirely for freehand/Draw Now, which earns no stars or
+         coins. Star/coin elements start invisible (see .starIcon/
+         #coinRewardAmount in full-flow.css) — JS adds '.pop'/'.popDim'
+         to each star with a stagger, and drives the coin count-up, so
+         nothing here needs its own "3 stars already sitting there"
+         markup beyond the 3 static placeholders. -->
     <div id="finishedPanel" class="hidden">
-      <div id="completionMessage">Design Complete!</div>
+      <div id="completionMessage">Well done!</div>
+
+      <div id="rewardRow" class="hidden">
+        <div id="starRow">
+          <img class="starIcon" src="assets/icon_star.png" alt="Star">
+          <img class="starIcon" src="assets/icon_star.png" alt="Star">
+          <img class="starIcon" src="assets/icon_star.png" alt="Star">
+        </div>
+        <div id="coinReward">
+          <img id="coinRewardIcon" src="assets/icon_coin.png" alt="">
+          <span id="coinRewardAmount">+0</span>
+        </div>
+      </div>
+
       <button id="newDesignBtn" type="button">New Design</button>
     </div>
   </div>
 
-  <!-- Hidden source images for the 6 proven-out designs. -->
+  <!-- Hidden source images for the 7 proven-out designs. -->
   <img id="src-flower" src="assets/flower_stencil.png" alt="" hidden>
   <img id="src-peacock_easy" src="assets/peacock_easy.png" alt="" hidden>
   <img id="src-peacock_advanced" src="assets/peacock_advanced.png" alt="" hidden>
   <img id="src-dark_vibes" src="assets/text_dark_vibes.png" alt="" hidden>
   <img id="src-jiyana" src="assets/text_jiyana.png" alt="" hidden>
   <img id="src-jash" src="assets/text_jash.png" alt="" hidden>
+  <img id="src-vine_bloom" src="assets/vine_bloom.png" alt="" hidden>
 
   <script src="js/main.js"></script>
 </body>
