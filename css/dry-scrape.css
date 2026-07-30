@@ -31,6 +31,27 @@
   opacity: 0;
 }
 
+/* Segment Auto-Complete's "wobble melts into a clean line" reveal — a
+   frozen snapshot of her rough ink, dropped in on top of the (already-
+   updated, already-perfect) real wetCanvas underneath, then faded away
+   to reveal it. Created/positioned/removed entirely from JS (see
+   startSegmentCrossfade() in main.js) — this is only the look, same
+   absolute-fill positioning as every other artboard layer above.
+   pointer-events:none so it can never intercept the next stroke. */
+.segmentCrossfadeOverlay {
+  position: absolute;
+  inset: 0;
+  width: 100%;
+  height: 100%;
+  pointer-events: none;
+  opacity: 1;
+  transition: opacity 200ms ease;
+}
+
+.segmentCrossfadeOverlay.fading {
+  opacity: 0;
+}
+
 /* Empty overlay, sized to match the canvases above, that spawnConfetti-
    Burst() briefly populates — see .confettiPiece below. */
 #confettiLayer {
