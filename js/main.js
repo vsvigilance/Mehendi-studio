@@ -60,7 +60,14 @@
   const dryerControls = document.getElementById('dryerControls');
   const dryerDoneBtn = document.getElementById('dryerDoneBtn');
 
-  const toolbar = document.getElementById('toolbar');
+  // Split into two groups (frequent tools vs. specialty tools) so the
+  // toolbar never needs horizontal scrolling — see the "More tools"
+  // section near setTool() below for how #toolbarSecondary behaves
+  // differently on phone (a collapsible drawer) vs. tablet (always
+  // visible beside the hand), all driven from CSS, not this JS.
+  const toolbarPrimary = document.getElementById('toolbarPrimary');
+  const toolbarSecondary = document.getElementById('toolbarSecondary');
+  const moreToolsBtn = document.getElementById('moreToolsBtn');
   const toolSelectBtns = Array.from(document.querySelectorAll('.toolBtn.tool-select'));
   const undoBtn = document.getElementById('undoBtn');
   const iconClearBtn = document.getElementById('iconClearBtn');
@@ -1393,7 +1400,9 @@
   function updateControlsForPhase() {
     changeBtn.classList.toggle('hidden', phase !== 'tracing');
     setPanelVisible(controls, phase === 'tracing');
-    setPanelVisible(toolbar, phase === 'tracing');
+    setPanelVisible(toolbarPrimary, phase === 'tracing');
+    setPanelVisible(toolbarSecondary, phase === 'tracing');
+    if (phase !== 'tracing') closeMoreTools(); // leaving tracing always resets the phone drawer closed, so it never reopens stale on the next design
     setPanelVisible(decorTray, phase === 'decorating');
     setPanelVisible(decorControls, phase === 'decorating');
     setPanelVisible(dryerControls, phase === 'drying');
@@ -1563,10 +1572,39 @@
       img.style.display = id === toolId ? 'block' : 'none';
     });
     updateShapeTrayVisibility();
+    // Picking any tool (from either group) means she's about to draw —
+    // if the phone-only specialty drawer happened to be open (she just
+    // picked a Ruler/Curve/etc. from it), tuck it away automatically so
+    // it doesn't sit over the hand while she works. Harmless no-op on
+    // tablet (the drawer mechanism doesn't apply there) or when it was
+    // already closed.
+    closeMoreTools();
   }
 
   toolSelectBtns.forEach((btn) => {
     btn.addEventListener('click', () => setTool(btn.dataset.tool));
+  });
+
+  // "More tools" — phone-portrait only (see css/full-flow.css; hidden
+  // outright on tablet, where #toolbarSecondary is already visible
+  // beside the hand and this toggle has nothing to do). Reuses the same
+  // .open class the rest of this file already understands via CSS
+  // transitions, kept separate from setPanelVisible()'s .hidden/
+  // .panelHidden mechanism since the two are independent concerns here:
+  // .hidden is "not tracing right now" (whole toolbar gone), .open is
+  // "tracing, and she's asked to see the specialty tools drawer."
+  function setMoreToolsOpen(open) {
+    toolbarSecondary.classList.toggle('open', open);
+    moreToolsBtn.classList.toggle('active', open);
+    moreToolsBtn.setAttribute('aria-expanded', open ? 'true' : 'false');
+  }
+
+  function closeMoreTools() {
+    setMoreToolsOpen(false);
+  }
+
+  moreToolsBtn.addEventListener('click', () => {
+    setMoreToolsOpen(!toolbarSecondary.classList.contains('open'));
   });
 
   /* =====================================================================
@@ -3140,6 +3178,10 @@
     bindi_red: 'assets/decor_bindi_drop_red.png',
     flower_pink: 'assets/decor_flower_pink.png',
     flower_purple: 'assets/decor_flower_purple.png',
+    moon_silver: 'assets/decor_moon_silver.png',
+    pearls_white: 'assets/decor_pearls_white.png',
+    butterfly_blue: 'assets/decor_butterfly_blue.png',
+    leaf_gold: 'assets/decor_leaf_gold.png',
   };
 
   // Every placed sticker supports three basic things a player expects to
