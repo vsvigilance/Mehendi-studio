@@ -101,6 +101,17 @@
   const coinRewardIcon = document.getElementById('coinRewardIcon');
   const coinRewardAmount = document.getElementById('coinRewardAmount');
 
+  // Story intro — see the STORY section below (near the sound section)
+  // for state/logic.
+  const storyIntro = document.getElementById('storyIntro');
+  const storySlides = Array.from(document.querySelectorAll('.storySlide'));
+  const storyDots = Array.from(document.querySelectorAll('.storyDot'));
+  const storySkipBtn = document.getElementById('storySkipBtn');
+  const storyNextBtn = document.getElementById('storyNextBtn');
+  const storyReplayBtn = document.getElementById('storyReplayBtn');
+  const bubbleJiyana = document.getElementById('bubbleJiyana');
+  const bubbleShopkeeper = document.getElementById('bubbleShopkeeper');
+
   const stencilCtx = stencilCanvas.getContext('2d');
   const stainCtx = stainCanvas.getContext('2d');
   const driedCtx = driedCanvas.getContext('2d');
@@ -214,6 +225,81 @@
   setMuted(soundMuted); // apply whatever was remembered from last time
 
   muteBtn.addEventListener('click', () => setMuted(!soundMuted));
+
+  /* =====================================================================
+     STORY INTRO — 3-slide first-run story, auto-shown once (see
+     STORY_SEEN_KEY) then replayable any time via #storyReplayBtn on the
+     picker. Slides are crossfaded via a plain 'active' class toggle
+     (simpler than setPanelVisible()'s display:none choreography — all 3
+     slides are the same fixed full-bleed size, nothing to reflow
+     around). Same localStorage-preference pattern as SOUND_MUTE_KEY/
+     COIN_TOTAL_KEY above.
+     ===================================================================== */
+  const STORY_SEEN_KEY = 'jiyanaMehendiStorySeen';
+  const STORY_SLIDE_COUNT = storySlides.length;
+  const BUBBLE_REPLY_DELAY_MS = 750; // shopkeeper's reply appears this long after Jiyana's line, so it reads as a back-and-forth
+
+  let currentStorySlide = 0;
+  let bubbleTimer = null;
+
+  function clearBubbleTimer() {
+    if (bubbleTimer) {
+      clearTimeout(bubbleTimer);
+      bubbleTimer = null;
+    }
+  }
+
+  function goToSlide(index) {
+    clearBubbleTimer();
+    bubbleJiyana.classList.remove('show');
+    bubbleShopkeeper.classList.remove('show');
+    currentStorySlide = index;
+    storySlides.forEach((slide, i) => slide.classList.toggle('active', i === index));
+    storyDots.forEach((dot, i) => dot.classList.toggle('active', i === index));
+    storyNextBtn.textContent = index === STORY_SLIDE_COUNT - 1 ? "Let's Begin!" : 'Next';
+    // Slide 2 (index 1) is the conversation — Jiyana's line pops in the
+    // instant the slide becomes active, the shopkeeper's reply follows
+    // after a beat rather than both appearing together.
+    if (index === 1) {
+      bubbleJiyana.classList.add('show');
+      bubbleTimer = setTimeout(() => {
+        bubbleShopkeeper.classList.add('show');
+        bubbleTimer = null;
+      }, BUBBLE_REPLY_DELAY_MS);
+    }
+  }
+
+  function openStory() {
+    storyIntro.classList.remove('hidden');
+    goToSlide(0);
+  }
+
+  function closeStory() {
+    clearBubbleTimer();
+    storyIntro.classList.add('hidden');
+    localStorage.setItem(STORY_SEEN_KEY, '1');
+  }
+
+  storySkipBtn.addEventListener('click', closeStory);
+  storyNextBtn.addEventListener('click', () => {
+    if (currentStorySlide === STORY_SLIDE_COUNT - 1) {
+      closeStory();
+    } else {
+      goToSlide(currentStorySlide + 1);
+    }
+  });
+  storyReplayBtn.addEventListener('click', openStory);
+
+  // Auto-show only the very first time. Safe to fire from here (near the
+  // top of the script, right after DOM refs are grabbed) rather than
+  // waiting for setupCanvases()/buildPickerCards() further down — the
+  // story overlay is a fixed inset:0 layer with no dependency on the
+  // artboard's own measured pixel size, so it doesn't matter whether the
+  // picker underneath has finished building its cards yet by the time
+  // this shows on top of it.
+  if (!localStorage.getItem(STORY_SEEN_KEY)) {
+    openStory();
+  }
 
   /* =====================================================================
      REWARD MOMENT — persistent coin total. Star computation and the
