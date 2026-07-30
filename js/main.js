@@ -12,10 +12,12 @@
    the dry+scrape mechanic, and the decoration tray/placement — is the
    exact same code already proven out in full-flow-test.js and
    decoration-test.js. This file's own job is the final consolidation:
-   one new phase ('decorating') that connects scraping to decorating,
-   and dropping the reward-loop (stars/coins) code, which is a
-   separate, still-evolving piece coming as its own follow-up update —
-   left out here deliberately, not missing by accident.
+   one new phase ('decorating') that connects scraping to decorating.
+
+   The reward moment (stars, coin count-up, confetti, persistent coin
+   total — see "REWARD MOMENT" further down) was intentionally left out
+   of the original consolidation and built later as its own follow-up
+   milestone, once the base flow was approved.
    ========================================================= */
 
 (() => {
@@ -44,6 +46,10 @@
   const scrapeCursor = document.getElementById('scrapeCursor');
   const scraperTool = document.getElementById('scraperTool');
   const dryerRig = document.getElementById('dryerRig');
+
+  // One-shot celebration burst fired the instant scraping finishes —
+  // see spawnConfettiBurst()/completeDesign().
+  const confettiLayer = document.getElementById('confettiLayer');
 
   const picker = document.getElementById('picker');
   const pickerCards = document.getElementById('pickerCards');
@@ -84,6 +90,16 @@
   const zoomControls = document.getElementById('zoomControls');
   const zoomInBtn = document.getElementById('zoomInBtn');
   const zoomOutBtn = document.getElementById('zoomOutBtn');
+
+  // Reward moment — stars + coin count-up, shown only for stencil-based
+  // completions (see playRewardSequence()/onDone()).
+  const coinBadge = document.getElementById('coinBadge');
+  const coinBadgeTotal = document.getElementById('coinBadgeTotal');
+  const rewardRow = document.getElementById('rewardRow');
+  const starIcons = Array.from(document.querySelectorAll('.starIcon'));
+  const coinReward = document.getElementById('coinReward');
+  const coinRewardIcon = document.getElementById('coinRewardIcon');
+  const coinRewardAmount = document.getElementById('coinRewardAmount');
 
   const stencilCtx = stencilCanvas.getContext('2d');
   const stainCtx = stainCanvas.getContext('2d');
@@ -199,6 +215,38 @@
 
   muteBtn.addEventListener('click', () => setMuted(!soundMuted));
 
+  /* =====================================================================
+     REWARD MOMENT — persistent coin total. Star computation and the
+     per-design coin amounts live near computeGuideCoverageRatio()/the
+     DESIGNS array; this part is just the running total that survives
+     between sessions and the small corner badge showing it on the
+     picker. Same localStorage-preference pattern as SOUND_MUTE_KEY
+     above — legitimate here since this is a real game file her own
+     browser runs, not a Claude.ai chat artifact.
+     ===================================================================== */
+  const COIN_TOTAL_KEY = 'jiyanaMehendiCoins';
+  let coinTotal = parseInt(localStorage.getItem(COIN_TOTAL_KEY), 10) || 0;
+
+  function renderCoinBadge() {
+    coinBadgeTotal.textContent = String(coinTotal);
+  }
+  renderCoinBadge(); // reflect whatever was remembered from last time, immediately
+
+  // Adds to the running total, persists it, and gives the corner badge a
+  // quick "bump" pulse so a returning glance at the picker reads as "this
+  // just grew" rather than a silent number change. Bump plays fresh each
+  // time (remove+reflow+add, same trick used everywhere else in this
+  // project for replayable one-shot animations) so awarding coins twice
+  // in a row still bumps both times.
+  function addCoins(amount) {
+    coinTotal += amount;
+    localStorage.setItem(COIN_TOTAL_KEY, String(coinTotal));
+    renderCoinBadge();
+    coinBadge.classList.remove('bump');
+    void coinBadge.offsetWidth;
+    coinBadge.classList.add('bump');
+  }
+
   // One delegated listener covers every button in the game (including
   // ones added later) rather than wiring a click sound into each button
   // individually. Runs after muteBtn's own listener (bubble order), so
@@ -212,6 +260,17 @@
   /* ---------------- Design picker + guide ---------------- */
   const STENCIL_OPACITY = 0.34;
 
+  // Fixed coins-per-design, a first-pass judgment call proportional to
+  // each design's own density/total-trace-length (not just widthRatio —
+  // Peacock Advanced and Vine Bloom are both physically large AND dense/
+  // long to trace, so they sit at the top; Flower/Dark Vibes/Jash are
+  // small single-motif traces, so they sit at the bottom). Reused/kept
+  // from the original reward-loop milestone's numbers where a design
+  // carries over unchanged (flower/jiyana/peacock_*), extended for the
+  // 3 designs added since (dark_vibes/jash matched to flower's tier,
+  // vine_bloom placed above peacock_advanced as the most spatially
+  // demanding trace in the game — 5 fingers + flower + border vs.
+  // peacock's single dense area). Trivially adjustable later.
   const DESIGNS = [
     {
       id: 'flower',
@@ -219,6 +278,7 @@
       img: document.getElementById('src-flower'),
       center: { x: 0.5, y: 0.58 },
       widthRatio: 0.46,
+      coins: 10,
     },
     {
       id: 'peacock_easy',
@@ -226,6 +286,7 @@
       img: document.getElementById('src-peacock_easy'),
       center: { x: 0.5, y: 0.52 },
       widthRatio: 0.62,
+      coins: 20,
     },
     {
       id: 'peacock_advanced',
@@ -233,6 +294,7 @@
       img: document.getElementById('src-peacock_advanced'),
       center: { x: 0.5, y: 0.52 },
       widthRatio: 0.62,
+      coins: 35,
     },
     {
       id: 'dark_vibes',
@@ -240,6 +302,7 @@
       img: document.getElementById('src-dark_vibes'),
       center: { x: 0.5, y: 0.50 },
       widthRatio: 0.40,
+      coins: 10,
     },
     {
       id: 'jiyana',
@@ -247,6 +310,7 @@
       img: document.getElementById('src-jiyana'),
       center: { x: 0.5, y: 0.52 },
       widthRatio: 0.54,
+      coins: 15,
     },
     {
       id: 'jash',
@@ -254,10 +318,37 @@
       img: document.getElementById('src-jash'),
       center: { x: 0.52, y: 0.56 },
       widthRatio: 0.40,
+      coins: 10,
+    },
+    {
+      // Full-hand design (vines up each finger + central flower + wrist
+      // border) — spans much more of the hand than the others, so its
+      // center sits higher up and its widthRatio is noticeably larger.
+      // Center/widthRatio were fit by matching this design's own vine
+      // fingertip positions against hero_palm.png's actual fingertip
+      // positions (a small least-squares scale+translate fit), then
+      // mapping the design's content bounding-box center through that
+      // same fit — not eyeballed. See project memory for the method.
+      // Highest coin value in the game — see comment above DESIGNS.
+      id: 'vine_bloom',
+      label: 'Vine Bloom',
+      img: document.getElementById('src-vine_bloom'),
+      center: { x: 0.60, y: 0.27 },
+      widthRatio: 0.63,
+      coins: 40,
     },
   ];
 
   let activeDesign = null;
+
+  // Reward-moment results, computed once at Done (see onDone()) while the
+  // guide/ink are still on-screen to compare, then consumed later when
+  // the finished panel actually animates in (finishDecorating()/
+  // playRewardSequence()). Stay null for freehand (activeDesign was
+  // already null at Done-time) so the reward UI knows to skip itself
+  // entirely — freehand/Draw Now earns no stars or coins, per spec.
+  let pendingStars = null;
+  let pendingCoins = null;
 
   function buildPickerCards() {
     DESIGNS.forEach((design) => {
@@ -660,16 +751,58 @@
     }
   }
 
+  // Cross-phase panel transitions: every bottom control bar (toolbar,
+  // shape tray, change-design controls, dryer controls, decor tray +
+  // controls, finished panel) plus the floating zoom controls used to
+  // snap in/out via an instant classList.toggle('hidden', ...) — a plain
+  // display:none swap, no way to animate that. setPanelVisible() gives
+  // each one a quick fade + slight slide instead, so switching phases
+  // reads as one continuous flow rather than screens popping in and out.
+  //
+  // Mechanism: showing removes 'hidden' immediately then, one frame
+  // later (after a forced reflow so the browser actually registers the
+  // starting position), removes 'panelHidden' too so the opacity/
+  // transform transition (defined in full-flow.css) animates from
+  // "faded/offset" to "in place". Hiding does the reverse in spirit but
+  // must wait for the fade to finish before adding 'hidden' back (display
+  // :none can't be transitioned — cutting straight to it would undo the
+  // whole point). A pending timer is tracked per element so rapidly
+  // toggling the same panel twice (e.g. quick undo/redo of a phase)
+  // can't leave two competing timeouts stepping on each other.
+  const PANEL_FADE_MS = 200;
+  const panelHideTimers = new WeakMap();
+
+  function setPanelVisible(el, visible) {
+    const pending = panelHideTimers.get(el);
+    if (pending) {
+      clearTimeout(pending);
+      panelHideTimers.delete(el);
+    }
+    if (visible) {
+      el.classList.remove('hidden');
+      el.classList.add('panelHidden');
+      void el.offsetWidth; // force reflow so the fade-in actually animates
+      el.classList.remove('panelHidden');
+    } else {
+      el.classList.add('panelHidden');
+      const t = setTimeout(() => {
+        el.classList.add('hidden');
+        panelHideTimers.delete(el);
+      }, PANEL_FADE_MS);
+      panelHideTimers.set(el, t);
+    }
+  }
+
   function updateControlsForPhase() {
     changeBtn.classList.toggle('hidden', phase !== 'tracing');
-    controls.style.display = phase === 'tracing' ? 'flex' : 'none';
-    toolbar.classList.toggle('hidden', phase !== 'tracing');
-    decorTray.classList.toggle('hidden', phase !== 'decorating');
-    decorControls.classList.toggle('hidden', phase !== 'decorating');
-    dryerControls.classList.toggle('hidden', phase !== 'drying');
-    finishedPanel.classList.toggle('hidden', phase !== 'done');
+    setPanelVisible(controls, phase === 'tracing');
+    setPanelVisible(toolbar, phase === 'tracing');
+    setPanelVisible(decorTray, phase === 'decorating');
+    setPanelVisible(decorControls, phase === 'decorating');
+    setPanelVisible(dryerControls, phase === 'drying');
+    setPanelVisible(finishedPanel, phase === 'done');
     const zoomable = phase === 'tracing' || phase === 'scraping' || phase === 'decorating';
-    zoomControls.classList.toggle('hidden', !zoomable);
+    setPanelVisible(zoomControls, zoomable);
     resetZoom();
     // Also gated here (not just from setTool()) because leaving the
     // 'tracing' phase (e.g. pressing Done) doesn't reset currentTool —
@@ -681,7 +814,7 @@
   // Visible only while Shape Pencil is genuinely usable: the tool is
   // selected AND tracing is the active phase.
   function updateShapeTrayVisibility() {
-    shapeTray.classList.toggle('hidden', !(phase === 'tracing' && currentTool === 'shapePencil'));
+    setPanelVisible(shapeTray, phase === 'tracing' && currentTool === 'shapePencil');
   }
 
   // Shared so the hint never talks about "the design" when there isn't
@@ -742,6 +875,15 @@
     completionBurst.classList.remove('visible');
     finishedPanel.classList.remove('reveal');
     wetCanvas.classList.remove('fade-out');
+    confettiLayer.replaceChildren(); // safety net if she restarts mid-burst
+    // Cancel any still-running reward sequence (star pops / coin
+    // count-up rAF loop) so a fast "New Design" tap mid-celebration
+    // can't have a stale timer/frame touch coinTotal or the picker's
+    // badge after we've already moved on.
+    clearRewardTimers();
+    rewardSequenceToken++;
+    pendingStars = null;
+    pendingCoins = null;
     hideAllToolCursors();
     scrapeCursor.classList.remove('visible', 'scraping');
     prevScrapeX = null;
@@ -1928,6 +2070,17 @@
   coverageCanvas.height = COVERAGE_H;
   const coverageCtx = coverageCanvas.getContext('2d', { willReadFrequently: true });
 
+  // Second small offscreen buffer, paired with the one above, so the
+  // star-rating check (see computeGuideCoverageRatio() near onDone())
+  // can hold both the guide's downscaled alpha and the ink's downscaled
+  // alpha at once — neither canvas's own pixel count alone answers "how
+  // much of the guide did she actually trace over," only comparing them
+  // does.
+  const coverageCanvas2 = document.createElement('canvas');
+  coverageCanvas2.width = COVERAGE_W;
+  coverageCanvas2.height = COVERAGE_H;
+  const coverageCtx2 = coverageCanvas2.getContext('2d', { willReadFrequently: true });
+
   let toolAngleDeg = -20;
   let prevScrapeX = null, prevScrapeY = null;
   let isScraping = false;
@@ -1991,6 +2144,53 @@
       if (data[i] > 25) count++;
     }
     return count;
+  }
+
+  // Star rating is based on how much of the stencil guide got traced
+  // over, not stroke accuracy — generous by design (the goal is "did she
+  // cover the design," not pixel-perfect line-following). Reuses the same
+  // cheap downscaled-getImageData technique as countCoverage() above,
+  // just comparing two layers (the guide's own shape vs. her actual ink)
+  // instead of counting one layer against its own starting size.
+  // stencilCanvas already IS the exact baked guide shape (drawn at
+  // STENCIL_OPACITY, hand-clipped) — no need to re-render placement math
+  // separately, we can just read its current pixels directly. Returns
+  // null (same fail-safe as countCoverage()) under file://, or if there's
+  // somehow no guide content to measure against.
+  const GUIDE_ALPHA_THRESHOLD = 10; // guide is baked faint (STENCIL_OPACITY≈0.34), needs a lower bar than ink's 25
+  const INK_ALPHA_THRESHOLD = 25;
+
+  function computeGuideCoverageRatio(guideCanvas, inkCanvas) {
+    coverageCtx.clearRect(0, 0, COVERAGE_W, COVERAGE_H);
+    coverageCtx.drawImage(guideCanvas, 0, 0, COVERAGE_W, COVERAGE_H);
+    coverageCtx2.clearRect(0, 0, COVERAGE_W, COVERAGE_H);
+    coverageCtx2.drawImage(inkCanvas, 0, 0, COVERAGE_W, COVERAGE_H);
+    let guideData, inkData;
+    try {
+      guideData = coverageCtx.getImageData(0, 0, COVERAGE_W, COVERAGE_H).data;
+      inkData = coverageCtx2.getImageData(0, 0, COVERAGE_W, COVERAGE_H).data;
+    } catch (err) {
+      return null; // file:// SecurityError — same fallback as countCoverage()
+    }
+    let guideCount = 0;
+    let overlapCount = 0;
+    for (let i = 3; i < guideData.length; i += 4) {
+      if (guideData[i] > GUIDE_ALPHA_THRESHOLD) {
+        guideCount++;
+        if (inkData[i] > INK_ALPHA_THRESHOLD) overlapCount++;
+      }
+    }
+    if (guideCount === 0) return null;
+    return overlapCount / guideCount;
+  }
+
+  // Deliberately generous, no 0-star tier — reaching Done already means a
+  // full trace was completed, so the worst outcome is still "1 star,"
+  // never "you failed."
+  function starsForCoverage(ratio) {
+    if (ratio >= 0.8) return 3;
+    if (ratio >= 0.5) return 2;
+    return 1;
   }
 
   // Builds the dried/stain layers from whatever the player actually
@@ -2062,6 +2262,25 @@
     // overlay could otherwise still be sitting there.
     hideAllToolCursors();
     destroyStencilAdjust();
+
+    // Star/coin scoring: must happen HERE, before the guide gets cleared
+    // two lines down — stencilCanvas's current pixels ARE the guide
+    // shape we need to compare her ink against. Skipped entirely for
+    // freehand/Draw Now (activeDesign null), per spec: no stencil guide
+    // means nothing to score coverage against, and this game mode simply
+    // doesn't earn stars/coins yet.
+    if (activeDesign) {
+      const ratio = computeGuideCoverageRatio(stencilCanvas, wetCanvas);
+      // null only happens under file:// (see computeGuideCoverageRatio's
+      // own comment) — fail safe to the generous default rather than
+      // crashing or awarding nothing.
+      pendingStars = ratio === null ? 2 : starsForCoverage(ratio);
+      pendingCoins = activeDesign.coins;
+    } else {
+      pendingStars = null;
+      pendingCoins = null;
+    }
+
     stencilGuideLocked = true;
     lockedGuideTransform = null;
     stencilCtx.clearRect(0, 0, cssW, cssH);
@@ -2121,6 +2340,7 @@
     scrapeCursor.classList.remove('visible', 'scraping');
     updateDecorHint();
     updateControlsForPhase();
+    spawnConfettiBurst();
   }
 
   function stampErase(x, y, r) {
@@ -2156,6 +2376,46 @@
     flake.style.setProperty('--fr', `${(Math.random() * 60 - 30).toFixed(0)}deg`);
     scrapeCursor.appendChild(flake);
     flake.addEventListener('animationend', () => flake.remove());
+  }
+
+  // One-shot celebration burst — fired once from completeDesign(), the
+  // exact instant scraping finishes and the design is revealed. Same
+  // "spawn a small DOM span with randomized CSS-custom-property motion,
+  // clean itself up on animationend" pattern as spawnFlake() above, just
+  // a bigger one-time burst instead of a continuous drip while scraping.
+  // Colors echo the decoration tray's own gem/bindi palette so the
+  // celebration feels like it belongs to this game rather than a generic
+  // stock effect.
+  const CONFETTI_COLORS = ['#e3b23c', '#e2695a', '#4a9bb0', '#7fb069', '#e58fb0', '#a67fc9'];
+  const CONFETTI_PIECE_COUNT = 26;
+
+  function spawnConfettiBurst() {
+    // Bursts from roughly the center of the visible design/hand rather
+    // than following a cursor — there's no "current position" for this
+    // moment the way there is while scraping.
+    const originX = cssW / 2;
+    const originY = cssH * 0.42;
+    for (let i = 0; i < CONFETTI_PIECE_COUNT; i++) {
+      const piece = document.createElement('span');
+      piece.className = 'confettiPiece';
+      if (Math.random() < 0.4) piece.classList.add('confettiPiece--dot');
+      const angle = Math.random() * Math.PI * 2;
+      const dist = 70 + Math.random() * 130;
+      // Slight upward bias (-40) so the burst reads as "up and outward"
+      // like a firework, not just sideways drift.
+      const fx = Math.cos(angle) * dist;
+      const fy = Math.sin(angle) * dist - 40;
+      piece.style.setProperty('--cx', `${originX}px`);
+      piece.style.setProperty('--cy', `${originY}px`);
+      piece.style.setProperty('--fx', `${fx}px`);
+      piece.style.setProperty('--fy', `${fy}px`);
+      piece.style.setProperty('--rot', `${(Math.random() * 720 - 360).toFixed(0)}deg`);
+      piece.style.setProperty('--delay', `${(Math.random() * 120).toFixed(0)}ms`);
+      piece.style.setProperty('--dur', `${(650 + Math.random() * 350).toFixed(0)}ms`);
+      piece.style.background = CONFETTI_COLORS[Math.floor(Math.random() * CONFETTI_COLORS.length)];
+      confettiLayer.appendChild(piece);
+      piece.addEventListener('animationend', () => piece.remove());
+    }
   }
 
   function angleLerp(a, b, t) {
@@ -2569,6 +2829,7 @@
     setHint('Your henna design is complete!');
     updateControlsForPhase();
     playCompletionReveal();
+    playRewardSequence();
     playCompletionChime();
   }
 
@@ -2583,6 +2844,112 @@
     void completionBurst.offsetWidth; // force reflow
     completionBurst.classList.add('visible');
     finishedPanel.classList.add('reveal');
+  }
+
+  /* ---------------- Reward-moment orchestration ----------------
+     Stars pop in one at a time -> confetti fires the instant the last
+     one lands -> coins tick up right after — one tight combined
+     celebration (~2s total) rather than several disconnected effects,
+     per Vinit's explicit spec. Skipped entirely for freehand/Draw Now
+     (pendingStars stays null — see onDone()). Timing is deliberately a
+     little front-loaded: the first star starts popping (220ms) before
+     the "Well done!" text even finishes its own bounce-in (which starts
+     260ms), so by the time she's read the text, the rating is already
+     mid-reveal — the two entrances overlap rather than queuing one
+     after the other. */
+  const STAR_STAGGER_MS = 220; // gap between each star's pop-in
+  const STAR_POP_DURATION_MS = 420; // must match .starIcon.pop/.popDim's CSS animation-duration
+  const COIN_START_GAP_MS = 150; // brief pause after the last star lands, before coins start ticking
+  const COIN_COUNT_DURATION_MS = 800;
+
+  // A monotonically-increasing token, plus every pending timer tracked
+  // so it can be cancelled — guards against a stale callback from a
+  // PREVIOUS reward sequence (e.g. she backs out to the picker, or
+  // somehow finishes a second design, before the first sequence's timers
+  // would have fired) touching shared state like coinTotal or spawning a
+  // second confetti burst on top of a fresh one.
+  let rewardSequenceToken = 0;
+  const rewardTimers = [];
+
+  function clearRewardTimers() {
+    rewardTimers.forEach((id) => clearTimeout(id));
+    rewardTimers.length = 0;
+  }
+
+  function scheduleReward(fn, delay) {
+    rewardTimers.push(setTimeout(fn, delay));
+  }
+
+  function resetRewardVisuals() {
+    starIcons.forEach((el) => el.classList.remove('pop', 'popDim'));
+    coinReward.classList.remove('visible');
+    coinRewardIcon.classList.remove('coinSpin');
+    coinRewardAmount.textContent = '+0';
+  }
+
+  function playRewardSequence() {
+    clearRewardTimers();
+    const myToken = ++rewardSequenceToken;
+    resetRewardVisuals();
+
+    if (pendingStars === null) {
+      // Freehand/Draw Now — no guide was traced, so there's no coverage
+      // to score. Nothing to fade from (this row has no reason to have
+      // been visible already), so a plain instant hide is correct here,
+      // not the fade helper.
+      rewardRow.classList.add('hidden');
+      rewardRow.classList.remove('panelHidden');
+      return;
+    }
+
+    setPanelVisible(rewardRow, true);
+
+    const earnedCount = pendingStars;
+    const lastStarIndex = starIcons.length - 1;
+    const lastStarLandsAt = STAR_STAGGER_MS * (lastStarIndex + 1) + STAR_POP_DURATION_MS;
+
+    starIcons.forEach((el, i) => {
+      scheduleReward(() => {
+        if (myToken !== rewardSequenceToken) return; // superseded — bail
+        el.classList.add(i < earnedCount ? 'pop' : 'popDim');
+      }, STAR_STAGGER_MS * (i + 1));
+    });
+
+    scheduleReward(() => {
+      if (myToken !== rewardSequenceToken) return;
+      spawnConfettiBurst();
+    }, lastStarLandsAt);
+
+    scheduleReward(() => {
+      if (myToken !== rewardSequenceToken) return;
+      startCoinCountUp(myToken);
+    }, lastStarLandsAt + COIN_START_GAP_MS);
+  }
+
+  // Ticks the displayed number from 0 up to pendingCoins over
+  // COIN_COUNT_DURATION_MS with an ease-out curve (fast start, gentle
+  // settle) rather than a linear crawl — reads as more satisfying for a
+  // small number of coins. Persists the new total immediately (not at
+  // the end of the tick) so the picker's badge is already correct the
+  // instant she navigates back, even if she does that unusually fast.
+  function startCoinCountUp(myToken) {
+    coinReward.classList.add('visible');
+    coinRewardIcon.classList.add('coinSpin');
+    addCoins(pendingCoins);
+    const target = pendingCoins;
+    const start = performance.now();
+    function tick(now) {
+      if (myToken !== rewardSequenceToken) return; // a newer sequence has taken over — stop driving this one
+      const t = Math.min(1, (now - start) / COIN_COUNT_DURATION_MS);
+      const eased = 1 - Math.pow(1 - t, 3);
+      coinRewardAmount.textContent = `+${Math.round(target * eased)}`;
+      if (t < 1) {
+        requestAnimationFrame(tick);
+      } else {
+        coinRewardIcon.classList.remove('coinSpin');
+      }
+    }
+    requestAnimationFrame(tick);
   }
 
   /* ---------------- Unified pointer routing ---------------- */
