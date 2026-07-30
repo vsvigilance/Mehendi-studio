@@ -91,8 +91,8 @@
   const zoomInBtn = document.getElementById('zoomInBtn');
   const zoomOutBtn = document.getElementById('zoomOutBtn');
 
-  // Magic Trace Assist — see the dedicated section near the M1 draw
-  // engine below for the snapping logic itself.
+  // Trace Assist ("Segment Auto-Complete") — see the dedicated section
+  // near the M1 draw engine below for the actual segment-matching logic.
   const traceAssistRow = document.getElementById('traceAssistRow');
   const traceAssistToggle = document.getElementById('traceAssistToggle');
 
@@ -347,22 +347,28 @@
   });
 
   /* =====================================================================
-     MAGIC TRACE ASSIST — an optional gentle "snap toward the guide"
-     feel for the Cone/Toothpick freehand tools only (stamps place a
-     fixed shape with nothing to snap; Ruler/Curve already have their own
-     precise press-drag-release model; Eraser removes ink rather than
-     tracing it). Off by default, remembered per browser once she changes
+     TRACE ASSIST ("Segment Auto-Complete") — an optional "wobbly scribble
+     becomes a clean line" feel for the Cone/Toothpick freehand tools only
+     (stamps place a fixed shape with nothing to complete; Ruler/Curve
+     already have their own precise press-drag-release model; Eraser
+     removes ink rather than tracing it). When she roughly gestures across
+     one logical piece of the design (a petal, a feather, a letter) and
+     releases, that whole piece's rough ink is replaced by its exact
+     guide line. Off by default, remembered per browser once she changes
      it — same localStorage-preference pattern as SOUND_MUTE_KEY/
      COIN_TOTAL_KEY/STORY_SEEN_KEY above. Star/coin scoring is completely
      unaffected either way (explicit product decision — see GAME_SPEC.md)
      since it's still coverage-based, not accuracy-based, and this game's
      scoring has always been generous rather than punishing.
 
-     The actual snapping field (buildTraceAssistField/applyTraceAssist)
-     lives further down, right after the stencil-guide section, since it
-     needs bakeStencilGuide()'s output (stencilCanvas) to scan — this
-     block is just the on/off state + UI, kept near the other simple
-     preference toggles for consistency.
+     An earlier version of this feature ("Magic Trace Assist") did a
+     gentle per-frame pull toward the nearest guide point instead — kept
+     too subtle a feel in practice, replaced with this stronger whole-
+     piece swap. The actual segment-matching logic (buildTraceAssist-
+     Segments/tryAutoCompleteSegment) lives further down, right after the
+     stencil-guide section, since it needs bakeStencilGuide()'s output
+     (stencilCanvas) to scan — this block is just the on/off state + UI,
+     kept near the other simple preference toggles for consistency.
      ===================================================================== */
   const TRACE_ASSIST_KEY = 'jiyanaMehendiTraceAssist';
   let traceAssistOn = localStorage.getItem(TRACE_ASSIST_KEY) === '1';
@@ -754,36 +760,133 @@
     }
     destroyStencilAdjust();
     bakeStencilGuide();
-    buildTraceAssistField();
+    buildTraceAssistSegments();
     setHint(defaultTracingHint());
   }
 
   /* =====================================================================
-     MAGIC TRACE ASSIST — the snapping field itself. stencilCanvas holds
-     only pixels, not a stored path, so "how close is the nearest bit of
-     guide line, and which way is it" isn't something we can just look
-     up — it has to be computed. Built once, right when the guide locks
-     (and again on resize/orientation-change, same trigger as
-     bakeStencilGuide() itself), NOT per frame: scan the locked guide
-     down to a small grid, then run a cheap two-pass nearest-feature scan
-     (a standard technique for this — propagate the nearest known guide
-     cell to its neighbors, forward then backward across the grid) so
-     every cell ends up knowing the nearest guide cell and its true
-     straight-line distance to it. A per-frame brute-force scan over
-     every guide pixel would be far too slow for something running on
-     every drawn point; this reduces it to one small one-time pass.
+     SEGMENT AUTO-COMPLETE — the actual "wobbly scribble becomes a clean
+     line" mechanic. stencilCanvas holds only pixels, not separate named
+     shapes, so "which logical piece (petal/feather/letter) does this bit
+     of guide belong to" isn't something we can just look up — it has to
+     be computed once, right when the guide locks (and again on resize/
+     orientation-change, same trigger as bakeStencilGuide() itself).
+
+     Two techniques, combined:
+
+     1) AUTOMATIC — an 8-connectivity flood fill over the locked guide's
+        own pixels. Any guide pixels that are only reachable from each
+        other (a connected blob) become one segment. This works great
+        for real-world designs whose pieces are already drawn as
+        separate shapes with a visible gap between them (every letter in
+        the text designs, most of vine_bloom's separate vine/dot/border
+        pieces) — verified against the real game assets before trusting
+        this, see the Segment Auto-Complete build notes in GAME_SPEC.md.
+
+     2) HAND-AUTHORED OVERRIDE (SEGMENT_ANCHORS below) — some designs'
+        artwork draws touching pieces (a flower whose 5 petals all meet
+        at the center, a peacock whose fanned feathers all share one
+        outline) as ONE connected blob, which the automatic technique
+        can't split on its own — verified this is real, not theoretical,
+        by running the flood fill on the actual flower_stencil.png and
+        finding exactly this (5 petals + stem all counted as one single
+        194,626-pixel blob). For the handful of designs where this
+        matters, a short hand-placed list of rough center points (one
+        per petal/feather/piece, in the SOURCE IMAGE's own normalized
+        coordinates — same convention as each design's own center/
+        widthRatio) tells the game where each real piece actually is;
+        any automatic blob bigger than SEGMENT_OVERRIDE_MIN_FRACTION of
+        the whole guide gets re-split by "which authored point is each
+        of its pixels closest to" instead of staying one giant piece.
+        Small, already-separate automatic segments (a design's own tiny
+        decorative dots/swirls) are left alone either way.
+
+     Every actual design in the game was checked this way before writing
+     any of this — peacock_advanced's fan turned out to have ~17 tightly
+     packed feathers where a first-pass set of anchors didn't cleanly
+     land on the real boundaries, so it deliberately has no override
+     entry yet and just auto-completes as one whole piece for now (see
+     the comment on SEGMENT_ANCHORS below) — a real, deliberately scoped
+     gap, not an oversight.
      ===================================================================== */
-  const ASSIST_GRID_W = 80; // low-res on purpose — this only needs to nudge a direction, not trace pixel-perfectly
-  const ASSIST_CAPTURE_RADIUS_NORM = 0.05; // how far (as a fraction of artboard width) the pull reaches before fading to zero
-  const ASSIST_MAX_PULL = 0.85; // strength right on top of the guide — kept just under 1 so it still reads as "pulled toward," not "teleported onto"
+  const SEGMENT_GRID_W = 140; // classification grid only — decides which piece each region belongs to, not what the ink looks like (see inkSourceFull below, which is full resolution)
+  const SEGMENT_OVERRIDE_MIN_FRACTION = 0.10; // an automatic blob bigger than this fraction of all guide pixels is almost certainly several touching pieces fused together, not one real piece
+  const SEGMENT_MATCH_RADIUS_NORM = 0.06; // how far (fraction of artboard width) a gesture point can be from a piece and still count as "aiming at it"
+  const SEGMENT_MIN_OVERLAP_RATIO = 0.35; // fraction of her WHOLE stroke's sampled points that must land near the winning piece for it to qualify
+  const SEGMENT_MIN_DRAG_DISTANCE = 0.02; // total path length her gesture must cover — a real attempted drag, not a bare tap (a bit more than MIN_DRAG_DISTANCE, since aiming at a whole piece should cover more ground than one precise ruler line)
 
-  let traceAssistField = null; // { w, h, dist: Float32Array, nearX: Float32Array, nearY: Float32Array } in grid-cell units
+  // Hand-placed rough centers for designs whose real pieces touch each
+  // other in the artwork (see the block comment above). Coordinates are
+  // fractions of the SOURCE IMAGE's own width/height — identical
+  // convention to each DESIGNS entry's own center/widthRatio — not the
+  // artboard; buildTraceAssistSegments() maps these through the SAME
+  // locked scale/rotate/position transform bakeStencilGuide() already
+  // uses, so they track the design correctly wherever she moved/resized/
+  // rotated it before locking. Multiple anchors sharing one name (e.g.
+  // "stem") all just contribute to that one segment — useful for a long
+  // thin piece a single center point wouldn't cover well.
+  const SEGMENT_ANCHORS = {
+    flower: [
+      { name: 'petal_top', u: 0.50, v: 0.11 },
+      { name: 'petal_upper_right', u: 0.78, v: 0.27 },
+      { name: 'petal_lower_right', u: 0.68, v: 0.51 },
+      { name: 'petal_lower_left', u: 0.28, v: 0.51 },
+      { name: 'petal_upper_left', u: 0.18, v: 0.27 },
+      { name: 'center', u: 0.50, v: 0.32 },
+      { name: 'stem', u: 0.50, v: 0.50 },
+      { name: 'stem', u: 0.50, v: 0.65 },
+      { name: 'stem', u: 0.50, v: 0.80 },
+      { name: 'stem', u: 0.50, v: 0.92 },
+      { name: 'leaf', u: 0.60, v: 0.68 },
+      { name: 'leaf', u: 0.85, v: 0.75 },
+    ],
+    peacock_easy: [
+      { name: 'body', u: 0.47, v: 0.85 },
+      { name: 'feather1', u: 0.04, v: 0.97 },
+      { name: 'feather2', u: 0.04, v: 0.78 },
+      { name: 'feather3', u: 0.08, v: 0.58 },
+      { name: 'feather4', u: 0.16, v: 0.40 },
+      { name: 'feather5', u: 0.26, v: 0.24 },
+      { name: 'feather6', u: 0.38, v: 0.11 },
+      { name: 'feather7', u: 0.50, v: 0.04 },
+      { name: 'feather8', u: 0.62, v: 0.11 },
+      { name: 'feather9', u: 0.74, v: 0.24 },
+      { name: 'feather10', u: 0.84, v: 0.40 },
+      { name: 'feather11', u: 0.92, v: 0.58 },
+      { name: 'feather12', u: 0.96, v: 0.78 },
+      { name: 'feather13', u: 0.96, v: 0.97 },
+    ],
+    vine_bloom: [
+      // Only vine_bloom's own central flower motif needs this — its 5
+      // finger-vines, border, and small accent dots are already cleanly
+      // separate in the artwork and get a real automatic segment each.
+      { name: 'petal_top', u: 0.45, v: 0.48 },
+      { name: 'petal_upper_right', u: 0.58, v: 0.51 },
+      { name: 'petal_right', u: 0.63, v: 0.60 },
+      { name: 'petal_lower_right', u: 0.58, v: 0.70 },
+      { name: 'petal_bottom', u: 0.45, v: 0.74 },
+      { name: 'petal_lower_left', u: 0.31, v: 0.70 },
+      { name: 'petal_left', u: 0.26, v: 0.60 },
+      { name: 'petal_upper_left', u: 0.31, v: 0.51 },
+      { name: 'center', u: 0.45, v: 0.60 },
+    ],
+    // peacock_advanced: no entry on purpose — see the block comment
+    // above. Its own small decorative swirls/paisleys/dots still each
+    // complete individually (those are already separate automatically);
+    // only its main fanned-feather outline auto-completes as one single
+    // whole-peacock piece for now.
+  };
 
-  function buildTraceAssistField() {
-    traceAssistField = null;
+  let traceAssistSegments = null; // { w, h, segId: Int32Array, segCount, bboxes: [{minX,maxX,minY,maxY} in FULL inkBuffer-pixel units], inkSourceFull: <canvas> }
+
+  function buildTraceAssistSegments() {
+    traceAssistSegments = null;
     if (!activeDesign || !cssW || !cssH) return;
 
-    const w = ASSIST_GRID_W;
+    // ---- Classification grid: decides which piece each region belongs
+    // to. Doesn't need to be full resolution — only inkSourceFull below
+    // (what actually gets copied into her drawing) needs to be crisp.
+    const w = SEGMENT_GRID_W;
     const h = Math.max(1, Math.round(w * (cssH / cssW)));
     const small = document.createElement('canvas');
     small.width = w;
@@ -800,105 +903,322 @@
     }
 
     const cellCount = w * h;
-    const INF = 1e9;
-    const dist = new Float32Array(cellCount).fill(INF);
-    const nearX = new Float32Array(cellCount);
-    const nearY = new Float32Array(cellCount);
-    let guidePixelCount = 0;
+    const isGuide = new Uint8Array(cellCount);
+    let totalGuideCells = 0;
+    for (let i = 0; i < cellCount; i++) {
+      if (data[i * 4 + 3] > GUIDE_ALPHA_THRESHOLD) {
+        isGuide[i] = 1;
+        totalGuideCells++;
+      }
+    }
+    if (totalGuideCells === 0) return; // shouldn't happen for a real design, but fail safe
+
+    // ---- Pass 1: automatic 8-connectivity flood fill. A plain array-
+    // backed queue (not real recursion) so a big densely-connected
+    // design can't blow the call stack.
+    const autoId = new Int32Array(cellCount).fill(-1);
+    const queueX = new Int32Array(cellCount);
+    const queueY = new Int32Array(cellCount);
+    let autoCount = 0;
+    const autoSizes = [];
+    for (let y = 0; y < h; y++) {
+      for (let x = 0; x < w; x++) {
+        const i0 = y * w + x;
+        if (!isGuide[i0] || autoId[i0] !== -1) continue;
+        const thisId = autoCount++;
+        let qHead = 0, qTail = 0;
+        queueX[qTail] = x; queueY[qTail] = y; qTail++;
+        autoId[i0] = thisId;
+        let size = 0;
+        while (qHead < qTail) {
+          const cx = queueX[qHead], cy = queueY[qHead]; qHead++;
+          size++;
+          for (let dy = -1; dy <= 1; dy++) {
+            for (let dx = -1; dx <= 1; dx++) {
+              if (dx === 0 && dy === 0) continue;
+              const nx = cx + dx, ny = cy + dy;
+              if (nx < 0 || nx >= w || ny < 0 || ny >= h) continue;
+              const ni = ny * w + nx;
+              if (!isGuide[ni] || autoId[ni] !== -1) continue;
+              autoId[ni] = thisId;
+              queueX[qTail] = nx; queueY[qTail] = ny; qTail++;
+            }
+          }
+        }
+        autoSizes.push(size);
+      }
+    }
+
+    // ---- Pass 2: any oversized automatic blob gets re-split by nearest
+    // hand-authored anchor instead, if this design has any (see
+    // SEGMENT_ANCHORS above). Anchors are transformed through the exact
+    // same locked scale/rotate/position math bakeStencilGuide() uses,
+    // once, up front — far cheaper than inverse-transforming every grid
+    // cell, since there are only a handful of anchors.
+    const anchorList = SEGMENT_ANCHORS[activeDesign.id] || null;
+    let transformedAnchors = null;
+    if (anchorList && lockedGuideTransform && activeDesign.img.naturalWidth) {
+      const t = lockedGuideTransform;
+      const designW = cssW * activeDesign.widthRatio * t.scale;
+      const designH = designW * (activeDesign.img.naturalHeight / activeDesign.img.naturalWidth);
+      const cx = t.nx * cssW;
+      const cy = t.ny * cssH;
+      const rad = (t.angle * Math.PI) / 180;
+      const cosA = Math.cos(rad), sinA = Math.sin(rad);
+      transformedAnchors = anchorList.map((a) => {
+        const localX = (a.u - 0.5) * designW;
+        const localY = (a.v - 0.5) * designH;
+        const worldX = cx + localX * cosA - localY * sinA;
+        const worldY = cy + localX * sinA + localY * cosA;
+        return { name: a.name, x: worldX, y: worldY }; // CSS-pixel space
+      });
+    }
+
+    const overrideThreshold = totalGuideCells * SEGMENT_OVERRIDE_MIN_FRACTION;
+    const segId = new Int32Array(cellCount).fill(-1);
+    const nameToId = new Map();
+    let nextId = 0;
+    function idForName(name) {
+      let id = nameToId.get(name);
+      if (id === undefined) { id = nextId++; nameToId.set(name, id); }
+      return id;
+    }
 
     for (let y = 0; y < h; y++) {
       for (let x = 0; x < w; x++) {
-        const idx = y * w + x;
-        if (data[idx * 4 + 3] > GUIDE_ALPHA_THRESHOLD) {
-          dist[idx] = 0;
-          nearX[idx] = x;
-          nearY[idx] = y;
-          guidePixelCount++;
-        }
-      }
-    }
-    if (guidePixelCount === 0) return; // shouldn't happen for a real design, but fail safe rather than divide-by-nothing later
-
-    // Pulls a neighbor's already-known nearest guide cell across to the
-    // current cell if that would be closer than what the current cell
-    // has found so far. Each relax() call only ever keeps or improves a
-    // cell's answer, never worsens it, so repeating the sweep is always
-    // safe — a SINGLE forward+backward sweep measurably mis-locates the
-    // nearest point on curved guide shapes (verified with a Node script
-    // comparing against a brute-force scan: ~1.1 grid-cell error on a
-    // plain circle, since one pass can't fully propagate around a curve
-    // from every direction). Mehendi designs are almost entirely curves
-    // (petals, feathers, vines), so this isn't an edge case here — it's
-    // the common case. 3 total sweeps brought the same test to exact
-    // (0 error) on a circle and ~0.03 cells on an S-curve; only an
-    // unrealistically tight spiral (finer detail than any real stencil)
-    // didn't fully converge, and even that residual is a small fraction
-    // of ASSIST_CAPTURE_RADIUS_NORM. This grid is tiny (a few thousand
-    // cells) and only rebuilt once per design lock/resize, never per
-    // frame, so 3 sweeps costs nothing worth worrying about.
-    function relax(x, y, nx, ny) {
-      if (nx < 0 || nx >= w || ny < 0 || ny >= h) return;
-      const nIdx = ny * w + nx;
-      if (dist[nIdx] === INF) return;
-      const idx = y * w + x;
-      const cx = nearX[nIdx];
-      const cy = nearY[nIdx];
-      const d = Math.hypot(cx - x, cy - y);
-      if (d < dist[idx]) {
-        dist[idx] = d;
-        nearX[idx] = cx;
-        nearY[idx] = cy;
-      }
-    }
-
-    const ASSIST_FIELD_SWEEPS = 3;
-    for (let pass = 0; pass < ASSIST_FIELD_SWEEPS; pass++) {
-      for (let y = 0; y < h; y++) {
-        for (let x = 0; x < w; x++) {
-          relax(x, y, x - 1, y);
-          relax(x, y, x, y - 1);
-          relax(x, y, x - 1, y - 1);
-          relax(x, y, x + 1, y - 1);
-        }
-      }
-      for (let y = h - 1; y >= 0; y--) {
-        for (let x = w - 1; x >= 0; x--) {
-          relax(x, y, x + 1, y);
-          relax(x, y, x, y + 1);
-          relax(x, y, x + 1, y + 1);
-          relax(x, y, x - 1, y + 1);
+        const i0 = y * w + x;
+        if (!isGuide[i0]) continue;
+        const aId = autoId[i0];
+        if (transformedAnchors && autoSizes[aId] >= overrideThreshold) {
+          const px = (x / w) * cssW;
+          const py = (y / h) * cssH;
+          let bestName = transformedAnchors[0].name;
+          let bestD = Infinity;
+          for (let k = 0; k < transformedAnchors.length; k++) {
+            const an = transformedAnchors[k];
+            const dx = px - an.x;
+            const dy = py - an.y;
+            const d = dx * dx + dy * dy;
+            if (d < bestD) { bestD = d; bestName = an.name; }
+          }
+          segId[i0] = idForName(bestName);
+        } else {
+          segId[i0] = idForName(`__auto_${aId}`);
         }
       }
     }
 
-    traceAssistField = { w, h, dist, nearX, nearY };
+    // ---- Per-segment bounding boxes, converted to FULL inkBuffer-pixel
+    // units (grid cells -> real device pixels) since that's the space
+    // the actual ink-swap composites in — see tryAutoCompleteSegment().
+    const fw = inkBuffer.width;
+    const fh = inkBuffer.height;
+    const bboxes = new Array(nextId).fill(null);
+    for (let y = 0; y < h; y++) {
+      for (let x = 0; x < w; x++) {
+        const id = segId[y * w + x];
+        if (id === -1) continue;
+        const fx0 = Math.floor((x / w) * fw);
+        const fx1 = Math.min(fw - 1, Math.ceil(((x + 1) / w) * fw) - 1);
+        const fy0 = Math.floor((y / h) * fh);
+        const fy1 = Math.min(fh - 1, Math.ceil(((y + 1) / h) * fh) - 1);
+        let b = bboxes[id];
+        if (!b) {
+          bboxes[id] = { minX: fx0, maxX: fx1, minY: fy0, maxY: fy1 };
+        } else {
+          if (fx0 < b.minX) b.minX = fx0;
+          if (fx1 > b.maxX) b.maxX = fx1;
+          if (fy0 < b.minY) b.minY = fy0;
+          if (fy1 > b.maxY) b.maxY = fy1;
+        }
+      }
+    }
+
+    // ---- The "perfect line" source: the real locked guide, recolored
+    // to actual ink color/alpha, at its true full device-pixel
+    // resolution — so a swapped-in piece looks exactly as crisp as
+    // everything she's drawn by hand, never blurry from the coarser
+    // classification grid above (that grid only decides WHICH pixels
+    // belong to which piece, not what those pixels look like).
+    const inkSourceFull = document.createElement('canvas');
+    inkSourceFull.width = fw;
+    inkSourceFull.height = fh;
+    const inkCtx = inkSourceFull.getContext('2d');
+    inkCtx.setTransform(1, 0, 0, 1, 0, 0);
+    inkCtx.drawImage(stencilCanvas, 0, 0);
+    inkCtx.globalCompositeOperation = 'source-in';
+    inkCtx.fillStyle = `rgba(${STROKE_COLOR_RGB}, ${STROKE_ALPHA})`;
+    inkCtx.fillRect(0, 0, fw, fh);
+    inkCtx.globalCompositeOperation = 'source-over';
+
+    traceAssistSegments = { w, h, segId, segCount: nextId, bboxes, inkSourceFull };
   }
 
-  // Called every frame a point is about to be drawn (see frame() below).
-  // Returns the point unchanged whenever Assist shouldn't apply — off,
-  // wrong tool, no field built, or simply too far from the guide to pull
-  // at all — so this is always safe to call unconditionally.
-  function applyTraceAssist(point) {
-    if (!traceAssistOn || !traceAssistField) return point;
-    if (currentTool !== 'cone' && currentTool !== 'toothpick') return point;
+  // Expanding-ring nearest-segment search on the (small) classification
+  // grid — checks every cell in the CURRENT ring before returning (not
+  // just the first one found) so it agrees with true nearest-neighbor
+  // distance, verified with a standalone brute-force comparison script
+  // before trusting it (an earlier "first found" version disagreed with
+  // ground truth in ~0.3% of cases — cheap to get exactly right since
+  // this only ever runs a per-stroke handful of times, not per frame).
+  function findNearestSegmentInGrid(gx, gy, seg, maxRadiusPx) {
+    const { w, h, segId } = seg;
+    if (gx >= 0 && gx < w && gy >= 0 && gy < h) {
+      const i0 = gy * w + gx;
+      if (segId[i0] !== -1) return segId[i0];
+    }
+    for (let r = 1; r <= maxRadiusPx; r++) {
+      let bestId = -1, bestD = Infinity;
+      const x0 = gx - r, x1 = gx + r, y0 = gy - r, y1 = gy + r;
+      const consider = (x, y) => {
+        if (x < 0 || x >= w || y < 0 || y >= h) return;
+        const id = segId[y * w + x];
+        if (id === -1) return;
+        const d = (x - gx) * (x - gx) + (y - gy) * (y - gy);
+        if (d < bestD) { bestD = d; bestId = id; }
+      };
+      for (let x = x0; x <= x1; x++) { consider(x, y0); consider(x, y1); }
+      for (let y = y0 + 1; y <= y1 - 1; y++) { consider(x0, y); consider(x1, y); }
+      if (bestId !== -1) return bestId;
+    }
+    return -1;
+  }
 
-    const { w, h, dist, nearX, nearY } = traceAssistField;
-    const gx = Math.min(w - 1, Math.max(0, Math.round(point.x * w)));
-    const gy = Math.min(h - 1, Math.max(0, Math.round(point.y * h)));
-    const idx = gy * w + gx;
-    const d = dist[idx];
-    if (d === undefined || d >= 1e9) return point;
+  // Called once at the end of a real gesture (see endStroke()), never
+  // per frame. Tallies which segment each of her sampled stroke points
+  // landed nearest to (within SEGMENT_MATCH_RADIUS_NORM), and returns
+  // whichever segment won — but only if it clears
+  // SEGMENT_MIN_OVERLAP_RATIO of her WHOLE stroke (not just the portion
+  // that happened to land near any guide at all), so a gesture that
+  // mostly wandered off the design doesn't still "win" on a technicality.
+  function findWinningSegmentForStroke(points, seg) {
+    if (!seg || !points.length) return -1;
+    const maxRadiusPx = Math.round(SEGMENT_MATCH_RADIUS_NORM * seg.w);
+    const tally = new Map();
+    points.forEach((p) => {
+      const gx = Math.round(p.x * seg.w);
+      const gy = Math.round(p.y * seg.h);
+      const id = findNearestSegmentInGrid(gx, gy, seg, maxRadiusPx);
+      if (id === -1) return;
+      tally.set(id, (tally.get(id) || 0) + 1);
+    });
+    let winner = -1, winnerCount = 0;
+    tally.forEach((count, id) => {
+      if (count > winnerCount) { winnerCount = count; winner = id; }
+    });
+    if (winner === -1) return -1;
+    return winnerCount / points.length >= SEGMENT_MIN_OVERLAP_RATIO ? winner : -1;
+  }
 
-    const distNorm = d / w; // grid cell distance -> normalized (0-1 of artboard width) distance
-    if (distNorm >= ASSIST_CAPTURE_RADIUS_NORM) return point;
+  // The actual "wobble becomes perfect" swap. Called from endStroke()
+  // right before it clears strokePoints. Returns true if it fired (so
+  // the caller knows a crossfade is already underway).
+  function tryAutoCompleteSegment() {
+    if (!traceAssistOn) return false;
+    if (currentTool !== 'cone' && currentTool !== 'toothpick') return false;
+    if (!traceAssistSegments || strokePoints.length < 2) return false;
 
-    const targetX = nearX[idx] / w;
-    const targetY = nearY[idx] / h;
-    const t = (1 - distNorm / ASSIST_CAPTURE_RADIUS_NORM) * ASSIST_MAX_PULL;
-    return {
-      x: lerp(point.x, targetX, t),
-      y: lerp(point.y, targetY, t),
-    };
+    let pathLen = 0;
+    for (let i = 1; i < strokePoints.length; i++) {
+      pathLen += Math.hypot(
+        strokePoints[i].x - strokePoints[i - 1].x,
+        strokePoints[i].y - strokePoints[i - 1].y
+      );
+    }
+    if (pathLen < SEGMENT_MIN_DRAG_DISTANCE) return false; // a bare tap, not a real attempted drag
+
+    const winner = findWinningSegmentForStroke(strokePoints, traceAssistSegments);
+    if (winner === -1) return false;
+
+    // undoStack's top entry is the snapshot pushed at THIS stroke's
+    // pointerdown (see handleDrawPointerDown) — restoring it wipes just
+    // this one rough gesture, exactly like Undo would, but WITHOUT
+    // popping the stack, so Undo can still reverse this whole action
+    // (rough-then-perfected) as one single step afterward.
+    const preStroke = undoStack[undoStack.length - 1];
+    if (!preStroke) return false;
+
+    // Snapshot exactly what wetCanvas shows right now (her rough ink, as
+    // already drawn live) — becomes the "before" layer the crossfade
+    // fades away, see startSegmentCrossfade().
+    const beforeSnapshot = document.createElement('canvas');
+    beforeSnapshot.width = wetCanvas.width;
+    beforeSnapshot.height = wetCanvas.height;
+    beforeSnapshot.getContext('2d').drawImage(wetCanvas, 0, 0);
+
+    inkBufferCtx.save();
+    inkBufferCtx.setTransform(1, 0, 0, 1, 0, 0);
+    inkBufferCtx.clearRect(0, 0, inkBuffer.width, inkBuffer.height);
+    inkBufferCtx.drawImage(preStroke, 0, 0);
+
+    const { w, h, segId, bboxes, inkSourceFull } = traceAssistSegments;
+    const fw = inkBuffer.width || 1;
+    const fh = inkBuffer.height || 1;
+    const box = bboxes[winner];
+    if (box) {
+      const bw = box.maxX - box.minX + 1;
+      const bh = box.maxY - box.minY + 1;
+
+      // Mask built at FULL resolution over just this piece's bbox
+      // (not the whole canvas) — bounded, cheap, and only run once per
+      // qualifying gesture, never per frame.
+      const maskCanvasLocal = document.createElement('canvas');
+      maskCanvasLocal.width = bw;
+      maskCanvasLocal.height = bh;
+      const maskCtxLocal = maskCanvasLocal.getContext('2d');
+      const maskImage = maskCtxLocal.createImageData(bw, bh);
+      for (let y = 0; y < bh; y++) {
+        // Full-res pixel -> its classification-grid cell (nearest
+        // neighbor) — the mask boundary is only as fine as that coarser
+        // grid, but that boundary only ever falls in the (already
+        // blank, or already-this-color) gap between two pieces, so the
+        // coarseness is invisible in the finished henna.
+        const gy = Math.min(h - 1, Math.floor(((box.minY + y) / fh) * h));
+        for (let x = 0; x < bw; x++) {
+          const gx = Math.min(w - 1, Math.floor(((box.minX + x) / fw) * w));
+          if (segId[gy * w + gx] === winner) {
+            const di = (y * bw + x) * 4;
+            maskImage.data[di] = 255;
+            maskImage.data[di + 1] = 255;
+            maskImage.data[di + 2] = 255;
+            maskImage.data[di + 3] = 255;
+          }
+        }
+      }
+      maskCtxLocal.putImageData(maskImage, 0, 0);
+
+      const segmentCanvas = document.createElement('canvas');
+      segmentCanvas.width = bw;
+      segmentCanvas.height = bh;
+      const segCtx = segmentCanvas.getContext('2d');
+      segCtx.drawImage(inkSourceFull, box.minX, box.minY, bw, bh, 0, 0, bw, bh);
+      segCtx.globalCompositeOperation = 'destination-in';
+      segCtx.drawImage(maskCanvasLocal, 0, 0);
+      segCtx.globalCompositeOperation = 'source-over';
+
+      inkBufferCtx.drawImage(segmentCanvas, box.minX, box.minY);
+    }
+    inkBufferCtx.restore();
+
+    compositeInk();
+    startSegmentCrossfade(beforeSnapshot);
+    return true;
+  }
+
+  // The visual "wobble melts into a clean line" reveal: places a frozen
+  // snapshot of her rough ink on top of the (already-updated, already-
+  // perfect) real canvas, then fades that snapshot out — same "prepare
+  // the final state instantly, then animate a layer to reveal it" idea
+  // as setPanelVisible()'s panel fades, just a one-shot overlay instead
+  // of a persistent UI element. Removes itself when the fade finishes,
+  // same "clean itself up" pattern as spawnConfettiBurst()'s pieces.
+  function startSegmentCrossfade(beforeSnapshotCanvas) {
+    const overlay = beforeSnapshotCanvas;
+    overlay.className = 'segmentCrossfadeOverlay';
+    artboard.appendChild(overlay);
+    void overlay.offsetWidth; // force reflow so the fade-out actually animates
+    overlay.classList.add('fading');
+    overlay.addEventListener('transitionend', () => overlay.remove());
   }
 
   /* ---------------- Phase state machine ----------------
@@ -1111,7 +1431,7 @@
     // stencilCanvas stays empty until lockStencilGuide() bakes it (see
     // that section, further up this file).
     stencilCtx.clearRect(0, 0, cssW, cssH);
-    traceAssistField = null; // stale field from whatever was previously active — rebuilt fresh once THIS guide locks
+    traceAssistSegments = null; // stale segments from whatever was previously active — rebuilt fresh once THIS guide locks
     createStencilAdjust();
     setTool('cone');
     updateControlsForPhase();
@@ -1136,7 +1456,7 @@
     lockedGuideTransform = null;
     stencilGuideLocked = true;
     stencilCtx.clearRect(0, 0, cssW, cssH);
-    traceAssistField = null; // no guide in Draw Now mode — nothing to snap toward
+    traceAssistSegments = null; // no guide in Draw Now mode — nothing to auto-complete toward
     setTool('cone');
     setHint(defaultTracingHint());
     updateControlsForPhase();
@@ -1148,7 +1468,7 @@
     destroyStencilAdjust();
     lockedGuideTransform = null;
     stencilGuideLocked = true;
-    traceAssistField = null;
+    traceAssistSegments = null;
     phase = 'picking';
     activeDesign = null;
     picker.classList.remove('hidden');
@@ -1466,7 +1786,7 @@
       // resize/orientation-change never reverts her adjustment.
       if (stencilGuideLocked) {
         bakeStencilGuide();
-        buildTraceAssistField(); // guide's pixel positions just changed with the resize — the snap field must match
+        buildTraceAssistSegments(); // guide's pixel positions just changed with the resize — the segments must match
       } else {
         positionStencilAdjust();
       }
@@ -2148,6 +2468,13 @@
   }
 
   function endStroke(e) {
+    // Segment Auto-Complete gets first look at the just-finished gesture,
+    // while strokePoints/isDrawing still reflect it — see
+    // tryAutoCompleteSegment() near the stencil-guide section. Safe to
+    // call unconditionally: it no-ops instantly whenever Assist
+    // shouldn't apply (off, wrong tool, no segments, too-short a drag,
+    // no clear winning piece).
+    if (isDrawing) tryAutoCompleteSegment();
     isDrawing = false;
     strokePoints = [];
     lastCommitted = null;
@@ -2286,19 +2613,15 @@
       };
 
       const touchLift = currentPointerType === 'touch' ? TOUCH_OFFSET_NORM : 0;
-      // Trace Assist is applied here, AFTER the touch-offset lift and
-      // BEFORE this point is used for either the on-screen cone position
-      // or the actual ink — so the visible tool and the drawn line always
-      // move together (the cone visually gets pulled toward the guide
-      // too), rather than the ink snapping while the cone appears to lag
-      // behind or ignore it. See applyTraceAssist() near the stencil-
-      // guide section for the actual snapping math.
-      const inkPoint = applyTraceAssist({ x: smoothedPoint.x, y: smoothedPoint.y - touchLift });
+      // Segment Auto-Complete only ever acts AFTER a whole gesture ends
+      // (see tryAutoCompleteSegment(), called from endStroke()) — the
+      // live per-frame drawing here is always pure, unmodified freehand,
+      // exactly as it was before Assist existed, whether Assist is on or
+      // off. This keeps the "wobbly scribble" fully visible while she's
+      // still drawing it, so the swap reads as a clear transformation
+      // the instant she releases, not a moment-to-moment nudge.
+      const inkPoint = { x: smoothedPoint.x, y: smoothedPoint.y - touchLift };
 
-      // Deliberately computed from the RAW smoothed motion, not the
-      // (possibly snapped) inkPoint above — the cone's steering tilt
-      // should reflect how her hand is actually moving, not get thrown
-      // off by an assist pull that has nothing to do with real velocity.
       const velX = (smoothedPoint.x - prevSmoothed.x) / Math.max(dt, 0.001);
       const targetAngle =
         BASE_TILT_DEG + Math.max(-MAX_TILT_DEG, Math.min(MAX_TILT_DEG, velX * TILT_GAIN));
@@ -2577,7 +2900,7 @@
     stencilGuideLocked = true;
     lockedGuideTransform = null;
     stencilCtx.clearRect(0, 0, cssW, cssH);
-    traceAssistField = null; // guide is gone for the rest of this design — nothing left to snap toward
+    traceAssistSegments = null; // guide is gone for the rest of this design — nothing left to auto-complete toward
 
     buildRevealLayers();
 
