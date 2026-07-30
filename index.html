@@ -4,11 +4,21 @@
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1, user-scalable=no, viewport-fit=cover">
 <title>Jiyana's Mehendi Studio</title>
+<!-- Rounded, friendly "storybook" display font — used only for the story
+     intro's captions/speech bubbles (see css/story.css), not the rest of
+     the game's UI, so this one addition can't accidentally change any
+     already-approved screen's look. Loaded from Google Fonts since the
+     game is served live from GitHub Pages (https), not opened as a bare
+     file — same reasoning as every other network asset here. -->
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Baloo+2:wght@600;700&display=swap" rel="stylesheet">
 <link rel="stylesheet" href="css/style.css">
 <link rel="stylesheet" href="css/text-stencil.css">
 <link rel="stylesheet" href="css/dry-scrape.css">
 <link rel="stylesheet" href="css/full-flow.css">
 <link rel="stylesheet" href="css/decoration.css">
+<link rel="stylesheet" href="css/story.css">
 </head>
 <body>
 
@@ -40,15 +50,58 @@
          (localStorage) — see js/main.js sound section. -->
     <button id="muteBtn" type="button" aria-label="Toggle sound">🔊</button>
 
+    <!-- 3-slide story intro — sits ON TOP of #picker (higher z-index,
+         see css/story.css), shown automatically only the very first time
+         the game is ever opened (STORY_SEEN_KEY in js/main.js), and
+         replayable any time via #storyReplayBtn on the picker. Each
+         .storySlide is stacked absolutely and crossfaded via JS
+         (goToSlide()) rather than removed from the DOM, so replaying
+         never has to rebuild anything. Skip is available on every slide;
+         Next becomes "Let's Begin!" on the last one. -->
+    <div id="storyIntro" class="hidden">
+      <button id="storySkipBtn" type="button">Skip</button>
+
+      <div class="storySlide active" data-slide="0">
+        <img class="storySlideImg" src="assets/story_slide1.jpg" alt="">
+        <div class="storyCaption">It was festival morning, and Jiyana had heard about the famous mehendi shop in town — today, she was finally going to visit.</div>
+      </div>
+
+      <div class="storySlide" data-slide="1">
+        <img class="storySlideImg" src="assets/story_slide2.jpg" alt="">
+        <div class="speechBubble speechBubble--left" id="bubbleJiyana">I want to learn to make mehendi like you!</div>
+        <div class="speechBubble speechBubble--right" id="bubbleShopkeeper">Then let's begin — pick your first design, and show me what you've got.</div>
+      </div>
+
+      <div class="storySlide" data-slide="2">
+        <img class="storySlideImg" src="assets/story_slide3.jpg" alt="">
+        <div class="storyCaption">Grab your cone, Jiyana — your mehendi journey starts now!</div>
+      </div>
+
+      <div id="storyDots">
+        <span class="storyDot active"></span>
+        <span class="storyDot"></span>
+        <span class="storyDot"></span>
+      </div>
+
+      <button id="storyNextBtn" type="button">Next</button>
+    </div>
+
     <div id="picker">
       <!-- Persistent running total, earned from stencil-based designs
            only (see js/main.js reward section) — always visible here so
            it reads as an ongoing collection, not a one-off score she'd
            forget about between sessions. Updated in place (no re-render
            needed) whenever coins are awarded. -->
-      <div id="coinBadge">
-        <img src="assets/icon_coin.png" alt="">
-        <span id="coinBadgeTotal">0</span>
+      <div id="pickerTopRow">
+        <div id="coinBadge">
+          <img src="assets/icon_coin.png" alt="">
+          <span id="coinBadgeTotal">0</span>
+        </div>
+
+        <!-- Replays the same first-run story intro any time — auto-show
+             only happens once (see STORY_SEEN_KEY in js/main.js), this
+             button is the only way back into it afterward. -->
+        <button id="storyReplayBtn" type="button">📖 Story</button>
       </div>
 
       <div class="pickerTitle">Choose how to begin</div>
