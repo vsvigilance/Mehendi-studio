@@ -82,7 +82,13 @@ html, body {
   justify-content: center;
 }
 
-/* Soft ambient glow behind the hand for depth — warm, diffused, barely-there */
+/* Soft ambient glow behind the hand for depth — warm, diffused, barely-there.
+   The slow scale/opacity "breathing" (glowBreathe below) is the only motion
+   this backdrop has on its own — subtle enough that it reads as "gently
+   lit," not as an obvious animation, but it keeps the backdrop from feeling
+   like static wallpaper across long play sessions. Animating transform +
+   opacity only (never width/height/filter) keeps this compositor-only, so
+   it's effectively free on a phone GPU. */
 #stageWrap::before {
   content: "";
   position: absolute;
@@ -95,7 +101,75 @@ html, body {
   filter: blur(60px);
   transform: translate(-50%, -50%) translateY(var(--hand-lift));
   pointer-events: none;
+  animation: glowBreathe 7s ease-in-out infinite;
 }
+
+@keyframes glowBreathe {
+  0%, 100% {
+    transform: translate(-50%, -50%) translateY(var(--hand-lift)) scale(1);
+    opacity: 1;
+  }
+  50% {
+    transform: translate(-50%, -50%) translateY(var(--hand-lift)) scale(1.07);
+    opacity: 0.85;
+  }
+}
+
+/* Cinematic vignette — corners/edges of the stage gently darken while the
+   hand stays fully bright, the classic "spotlight" trick that makes
+   lighting read as intentional instead of flat. z-index:4 places it above
+   #stage's own content (which has no explicit z-index, so sits at the
+   default level) but below every real UI control that already declares a
+   z-index here (#zoomControls/#traceAssistRow at 5, the toolbar groups at
+   6/7) — so it never dims anything she actually needs to read or tap, only
+   the empty backdrop around it. Kept deliberately faint (16% at the very
+   corner, fully transparent well before the hand) so it reads as ambiance,
+   not a dark overlay. */
+#stageWrap::after {
+  content: "";
+  position: absolute;
+  inset: 0;
+  z-index: 4;
+  pointer-events: none;
+  background: radial-gradient(ellipse at 50% 42%, rgba(74, 42, 18, 0) 45%, rgba(74, 42, 18, 0.16) 100%);
+}
+
+/* Ambient "gold dust" specks (see the 8 .sparkle spans in index.html) —
+   each slowly rises and fades on its own loop; different delays/durations
+   per speck (via nth-child below) keep them from ever looking synchronized.
+   Positioned mostly toward the edges/corners of the stage, away from the
+   hand itself, so they read as light drifting through the scene rather
+   than competing with her drawing for attention. transform + opacity only,
+   same compositor-only reasoning as glowBreathe above. */
+.sparkle {
+  position: absolute;
+  width: 5px;
+  height: 5px;
+  border-radius: 50%;
+  background: radial-gradient(circle, rgba(255, 226, 181, 0.95) 0%, rgba(255, 200, 140, 0.55) 55%, rgba(255, 200, 140, 0) 75%);
+  filter: blur(0.5px);
+  opacity: 0;
+  pointer-events: none;
+  will-change: transform, opacity;
+  animation: sparkleDrift 8s ease-in-out infinite;
+}
+
+@keyframes sparkleDrift {
+  0%   { transform: translateY(6px) scale(0.7); opacity: 0; }
+  15%  { opacity: 0.85; }
+  50%  { transform: translateY(-12px) scale(1); opacity: 0.55; }
+  85%  { opacity: 0; }
+  100% { transform: translateY(-26px) scale(0.7); opacity: 0; }
+}
+
+.sparkle:nth-child(1) { top: 14%; left: 10%;  animation-delay: 0s;    animation-duration: 7.5s; }
+.sparkle:nth-child(2) { top: 68%; left: 8%;   animation-delay: 1.4s;  animation-duration: 9s;   }
+.sparkle:nth-child(3) { top: 22%; left: 86%;  animation-delay: 2.6s;  animation-duration: 8.2s; }
+.sparkle:nth-child(4) { top: 78%; left: 88%;  animation-delay: 0.7s;  animation-duration: 7.8s; }
+.sparkle:nth-child(5) { top: 42%; left: 6%;   animation-delay: 3.5s;  animation-duration: 8.6s; }
+.sparkle:nth-child(6) { top: 8%;  left: 52%;  animation-delay: 4.2s;  animation-duration: 9.4s; }
+.sparkle:nth-child(7) { top: 90%; left: 46%;  animation-delay: 1.9s;  animation-duration: 7.2s; }
+.sparkle:nth-child(8) { top: 50%; left: 92%;  animation-delay: 5.1s;  animation-duration: 8.9s; }
 
 /* Height is 100% of #stageWrap (not a fixed vh fraction) so the artboard
    only ever claims whatever room is actually left after the hint,
