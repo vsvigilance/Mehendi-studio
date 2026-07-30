@@ -33,22 +33,58 @@
 
   <div id="app">
 
+    <!-- Always reachable, any phase, so she can go quiet without leaving
+         whatever she's in the middle of. Remembers her choice next time
+         (localStorage) — see js/main.js sound section. -->
+    <button id="muteBtn" type="button" aria-label="Toggle sound">🔊</button>
+
     <div id="picker">
-      <div class="pickerTitle">Choose a design to trace</div>
-      <div id="pickerCards"></div>
-      <div class="pickerDivider"><span>or</span></div>
-      <button id="freehandBtn" type="button">Just Draw</button>
+      <div class="pickerTitle">Choose how to begin</div>
+
+      <!-- All 6 stencil designs, in a 2-column grid so they read as one
+           tidy panel instead of a long scroll — see .pickerPanel /
+           #pickerCards in text-stencil.css. -->
+      <div class="pickerPanel">
+        <div class="pickerPanelLabel">Templates</div>
+        <div id="pickerCards"></div>
+      </div>
+
+      <!-- Its own distinct card — no stencil guide, straight to a blank
+           hand. Background photo is a cropped corner of Vinit's new
+           background scene (the henna cones/bowl/flowers on the wooden
+           table); see game/assets/draw_now_bg.jpg and the memory note
+           on why the full scene doesn't work as a full-screen portrait
+           background but this corner crop works well here. -->
+      <button id="freehandBtn" type="button">
+        <span class="freehandTitle">Draw Now</span>
+        <span class="freehandSub">Start on a blank hand, no guide</span>
+      </button>
     </div>
 
     <div id="stageWrap">
       <div id="stage">
         <div id="artboard">
+          <!-- Sits behind the hand (first child, before #palm) so it
+               reads as a warm celebratory glow framing the finished
+               piece rather than covering it — the hand and her design
+               stay the visual focus, per the "hero is the hand" rule.
+               Hidden until the 'done' phase; see finishDecorating(). -->
+          <img id="completionBurst" src="assets/completion_burst.png" alt="">
+
           <img id="palm" src="assets/hero_palm.png" alt="">
 
           <!-- Guide: faint, non-fading while tracing. Cleared the
                instant Done is pressed so nothing can show through the
                finished piece underneath. -->
           <canvas id="stencilCanvas"></canvas>
+
+          <!-- Holds the one adjustable guide preview (move + resize/
+               rotate handles) shown right after picking a design, before
+               she's drawn anything — see createStencilAdjust() in
+               js/main.js. Empty/unused for Draw Now (no guide) and for
+               the rest of tracing once locked, same pattern as
+               #stampStage/#decorLayer below. -->
+          <div id="stencilAdjustStage"></div>
 
           <!-- Reveal stack: stain (bottom) -> dried paste (scraped
                away) -> wet ink (visible while tracing, fades out once
@@ -106,6 +142,16 @@
             </div>
           </div>
         </div>
+
+        <!-- Sits outside #artboard on purpose — these are screen
+             controls, not game content, so they must never scale/pan
+             along with the zoomed artboard themselves. Shown only during
+             tracing/scraping/decorating (see updateControlsForPhase()),
+             since zoom has no purpose on the picker/drying/done screens. -->
+        <div id="zoomControls" class="hidden">
+          <button id="zoomInBtn" type="button" aria-label="Zoom in">+</button>
+          <button id="zoomOutBtn" type="button" aria-label="Zoom out" disabled>&minus;</button>
+        </div>
       </div>
     </div>
 
@@ -137,6 +183,16 @@
       <button class="toolBtn tool-select" data-tool="paisley" title="Paisley Stamp" type="button">
         <img src="assets/icon_paisley.png" alt="Paisley Stamp">
       </button>
+      <!-- No image asset — code-generated shape, drawn straight from
+           canvas paths so it stays crisp at any size (see
+           SHAPE_PENCIL_PATHS in js/main.js). Icon is a simple filled
+           star, matching the gold/cream look of every other iconOnly
+           toolbar button. -->
+      <button class="toolBtn tool-select iconOnly" data-tool="shapePencil" title="Shape Pencil" type="button">
+        <svg viewBox="0 0 44 44" class="toolGlyph" aria-hidden="true">
+          <polygon points="22,4 26.5,17 40,17 29,25.5 33,39 22,30.5 11,39 15,25.5 4,17 17.5,17"></polygon>
+        </svg>
+      </button>
       <button class="toolBtn tool-select iconOnly" data-tool="eraser" title="Eraser" type="button">
         <img src="assets/icon_eraser.png" alt="Eraser">
       </button>
@@ -150,6 +206,33 @@
       <button id="iconDoneBtn" class="toolBtn" title="Done" type="button">
         <img src="assets/icon_done.png" alt="Done">
       </button>
+    </div>
+
+    <!-- Shown only while the Shape Pencil tool is selected during
+         tracing (see setTool() in js/main.js). Pick which of the 5
+         shapes to place, and whether the next one is a solid henna
+         shape or just its outline — both apply the moment she taps the
+         hand to place one, same place->adjust->bake pattern as the
+         Circle/Paisley stamps. -->
+    <div id="shapeTray" class="hidden">
+      <button class="toolBtn iconOnly shapeBtn active" data-shape="circle" title="Circle" type="button">
+        <svg viewBox="0 0 44 44" class="shapeGlyph"><circle cx="22" cy="22" r="15"></circle></svg>
+      </button>
+      <button class="toolBtn iconOnly shapeBtn" data-shape="triangle" title="Triangle" type="button">
+        <svg viewBox="0 0 44 44" class="shapeGlyph"><polygon points="22,6 37,34 7,34"></polygon></svg>
+      </button>
+      <button class="toolBtn iconOnly shapeBtn" data-shape="rhombus" title="Rhombus" type="button">
+        <svg viewBox="0 0 44 44" class="shapeGlyph"><polygon points="22,5 39,22 22,39 5,22"></polygon></svg>
+      </button>
+      <button class="toolBtn iconOnly shapeBtn" data-shape="kite" title="Kite" type="button">
+        <svg viewBox="0 0 44 44" class="shapeGlyph"><polygon points="22,3 32.5,19 22,41 11.5,19"></polygon></svg>
+      </button>
+      <button class="toolBtn iconOnly shapeBtn" data-shape="star" title="Star" type="button">
+        <svg viewBox="0 0 44 44" class="shapeGlyph"><polygon points="22,4 26.5,17 40,17 29,25.5 33,39 22,30.5 11,39 15,25.5 4,17 17.5,17"></polygon></svg>
+      </button>
+      <div class="toolbarDivider"></div>
+      <button id="shapeFilledBtn" class="fillToggleBtn active" data-fill="filled" type="button">Filled</button>
+      <button id="shapeHollowBtn" class="fillToggleBtn" data-fill="hollow" type="button">Outline</button>
     </div>
 
     <div id="controls">
@@ -201,8 +284,11 @@
 
     <!-- Final screen: shown once decorating is finished (Done tapped).
          No stars/coins here yet — that reward layer is a separate,
-         still-in-progress piece coming as a follow-up update. -->
+         still-in-progress piece coming as a follow-up update. This is
+         just a warm, simple "you did it" moment: the completionBurst
+         glow behind the hand + this message, no scoring attached. -->
     <div id="finishedPanel" class="hidden">
+      <div id="completionMessage">Design Complete!</div>
       <button id="newDesignBtn" type="button">New Design</button>
     </div>
   </div>
