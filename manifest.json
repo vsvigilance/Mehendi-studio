@@ -1,0 +1,31 @@
+{
+  "name": "Jiyana's Mehendi Studio",
+  "short_name": "Mehendi Studio",
+  "description": "A relaxing mehendi design studio — trace, dry, scrape, and decorate beautiful henna art.",
+  "start_url": "./index.html",
+  "scope": "./",
+  "display": "standalone",
+  "orientation": "portrait",
+  "background_color": "#f8e8d2",
+  "theme_color": "#f8e8d2",
+  "icons": [
+    {
+      "src": "assets/icon-192.png",
+      "sizes": "192x192",
+      "type": "image/png",
+      "purpose": "any"
+    },
+    {
+      "src": "assets/icon-512.png",
+      "sizes": "512x512",
+      "type": "image/png",
+      "purpose": "any"
+    },
+    {
+      "src": "assets/icon-512-maskable.png",
+      "sizes": "512x512",
+      "type": "image/png",
+      "purpose": "maskable"
+    }
+  ]
+}
