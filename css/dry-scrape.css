@@ -31,6 +31,15 @@
   opacity: 0;
 }
 
+/* Empty overlay, sized to match the canvases above, that spawnConfetti-
+   Burst() briefly populates — see .confettiPiece below. */
+#confettiLayer {
+  position: absolute;
+  inset: 0;
+  pointer-events: none;
+  overflow: visible;
+}
+
 /* ---- Scrape tool cursor ----
    #scrapeCursor is a zero-size ANCHOR, translated to the pointer position
    every frame (same pattern as #coneAnchor in main.js). #scrapeGlow and
@@ -100,6 +109,55 @@
 @keyframes flakeFly {
   0% { opacity: 0.9; transform: translate(0, 0) rotate(0deg); }
   100% { opacity: 0; transform: translate(var(--fx), var(--fy)) rotate(var(--fr)); }
+}
+
+/* ---- Reveal-complete confetti burst ----
+   #confettiLayer (in index.html, last child of #artboard so it always
+   renders on top) starts empty; spawnConfettiBurst() in main.js fills it
+   with ~26 of these spans the instant scraping finishes, each one
+   self-removing via animationend (same cleanup pattern as .flake above).
+   Small squares + a few circles ("--dot") for variety, colored from the
+   decoration tray's own gem/bindi palette so it reads as part of this
+   game rather than a generic effect. */
+.confettiPiece {
+  --cx: 0px;
+  --cy: 0px;
+  --fx: 0px;
+  --fy: 0px;
+  --rot: 0deg;
+  --delay: 0ms;
+  --dur: 900ms;
+  position: absolute;
+  left: 0;
+  top: 0;
+  width: 8px;
+  height: 8px;
+  border-radius: 2px;
+  opacity: 0;
+  animation: confettiBurst var(--dur) var(--delay) cubic-bezier(0.15, 0.7, 0.3, 1) forwards;
+  will-change: transform, opacity;
+}
+
+.confettiPiece--dot {
+  width: 6px;
+  height: 6px;
+  border-radius: 50%;
+}
+
+@keyframes confettiBurst {
+  0% {
+    opacity: 0;
+    transform: translate(var(--cx), var(--cy)) translate(-50%, -50%) rotate(0deg) scale(0.5);
+  }
+  14% {
+    opacity: 1;
+    transform: translate(var(--cx), var(--cy)) translate(-50%, -50%) rotate(0deg) scale(1);
+  }
+  100% {
+    opacity: 0;
+    transform: translate(calc(var(--cx) + var(--fx)), calc(var(--cy) + var(--fy)))
+      translate(-50%, -50%) rotate(var(--rot)) scale(0.85);
+  }
 }
 
 /* ---- Hairdryer rig ----

@@ -50,6 +50,51 @@
   text-align: center;
 }
 
+/* Persistent coin total — a small unobtrusive corner badge (same
+   "quiet corner" treatment as #muteBtn, just the opposite corner) rather
+   than a headline element, since it's a running total she'll glance at,
+   not the point of this screen. Only ever lives on the picker (this
+   file), updated in place by main.js whenever coins are awarded. */
+#coinBadge {
+  position: absolute;
+  top: calc(10px + env(safe-area-inset-top));
+  left: calc(10px + env(safe-area-inset-left));
+  display: flex;
+  align-items: center;
+  gap: 5px;
+  padding: 6px 12px 6px 8px;
+  border-radius: 999px;
+  background: rgba(255, 250, 243, 0.75);
+  box-shadow: 0 4px 10px rgba(122, 83, 48, 0.16);
+}
+
+#coinBadge img {
+  width: 22px;
+  height: 22px;
+  -webkit-user-drag: none;
+  user-drag: none;
+}
+
+#coinBadgeTotal {
+  font-size: 15px;
+  font-weight: 800;
+  color: var(--stencil-accent-dark);
+}
+
+/* Brief pulse played whenever coins are freshly added to the total (see
+   bumpCoinBadge() in main.js) — a quick, quiet acknowledgment that the
+   persistent total just grew, distinct from the big reward-moment
+   animation on the finished screen itself. */
+#coinBadge.bump {
+  animation: coinBadgeBump 380ms ease-out;
+}
+
+@keyframes coinBadgeBump {
+  0% { transform: scale(1); }
+  35% { transform: scale(1.15); }
+  100% { transform: scale(1); }
+}
+
 /* Boxed panel look — a soft translucent cream card that groups the
    whole template grid into one clear unit, distinct from the page's
    own background and from the Draw Now card below it. */
@@ -183,6 +228,14 @@
   justify-content: center;
   gap: 12px;
   padding: 6px 20px calc(16px + env(safe-area-inset-bottom));
+}
+
+/* Was previously toggled via a direct style.display swap in main.js —
+   now uses the same fade/slide .hidden+.panelHidden pattern as every
+   other phase panel (see full-flow.css), so it needs the same final
+   "actually removed from layout" state those get. */
+#controls.hidden {
+  display: none;
 }
 
 #controls button {

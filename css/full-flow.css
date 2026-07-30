@@ -11,6 +11,47 @@
   display: none;
 }
 
+/* ---- Cross-phase panel transitions ----
+   Every bottom control bar across phases (#toolbar, #shapeTray,
+   #controls, #dryerControls, #decorTray, #decorControls,
+   #finishedPanel) plus the floating #zoomControls corner button used to
+   snap in/out via an instant classList.toggle('hidden', ...) — a plain
+   display:none swap has nothing to transition. setPanelVisible() in
+   main.js now choreographs a quick fade+slight-slide instead, so
+   switching phases (picker -> tracing -> drying -> scraping ->
+   decorating -> done -> picker) reads as one continuous flow rather
+   than screens popping in and out. .panelHidden is the transient
+   mid-fade state; .hidden still does the final display:none, just
+   applied after the fade finishes instead of instantly.
+
+   #rewardRow reuses the exact same mechanism one level down — it's a
+   sub-panel INSIDE #finishedPanel that setPanelVisible() shows only for
+   stencil-based completions (see playRewardSequence()), same reasoning
+   as every other panel here, just nested one level deeper. */
+#toolbar,
+#shapeTray,
+#controls,
+#dryerControls,
+#decorTray,
+#decorControls,
+#finishedPanel,
+#rewardRow,
+#zoomControls {
+  transition: opacity 200ms ease, transform 200ms ease;
+}
+
+.panelHidden {
+  opacity: 0;
+  transform: translateY(10px);
+  pointer-events: none;
+}
+
+/* Zoom is a floating corner button, not a bottom bar — sliding it would
+   look like it's escaping its corner, so it only fades. */
+#zoomControls.panelHidden {
+  transform: none;
+}
+
 /* The flower/text/peacock pickers only ever showed 2-3 cards, so
    text-stencil.css never needed to worry about the list outgrowing the
    screen. With all 6 designs in one picker, a short phone in portrait
@@ -492,11 +533,10 @@
 
 /* ---- Finished screen ----
    Shown once decorating is done (or skipped) — the true end of the
-   whole flow. No stars/coins here yet — that reward layer is a
-   separate, still-evolving piece coming as its own follow-up. This is
-   just a warm, simple closure moment: a soft gold glow behind the hand
-   (#completionBurst, sits inside #artboard, see index.html) plus this
-   message, no scoring attached. */
+   whole flow. A soft gold glow behind the hand (#completionBurst, sits
+   inside #artboard, see index.html) plus the "Well done!" message
+   always play. #rewardRow (stars + coins, below) only appears for
+   stencil-based completions — see playRewardSequence() in main.js. */
 #finishedPanel {
   flex: 0 0 auto;
   display: flex;
@@ -528,6 +568,108 @@
     opacity: 1;
     transform: translateY(0) scale(1);
   }
+}
+
+/* ---- Reward row (stars + coins) ----
+   Hidden entirely for freehand/Draw Now completions (no guide to score
+   coverage against, so nothing to show) — playRewardSequence() in
+   main.js only removes 'hidden' here when pendingStars/pendingCoins are
+   actually set. Uses the exact same .hidden/.panelHidden fade pattern as
+   every other phase panel (see setPanelVisible() in main.js and the
+   shared rule in this file) for its own reveal, one layer ABOVE the 3
+   stars' individual pop-in animations underneath it. */
+#rewardRow {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 6px;
+}
+
+#starRow {
+  display: flex;
+  gap: 6px;
+}
+
+/* Each star starts fully invisible/tiny — JS adds '.pop' (earned, ends
+   gold+glowing) or '.popDim' (not earned, ends grey+muted) to each one
+   in turn, staggered ~220ms apart, so they land one at a time rather
+   than all snapping in together. Whether a given star ends up gold or
+   grey is decided once, before any animation starts (based on
+   pendingStars) — the animation only controls WHEN it appears, not
+   which outcome it shows. */
+.starIcon {
+  width: 46px;
+  height: 46px;
+  opacity: 0;
+  transform: scale(0.2) rotate(-18deg);
+  -webkit-user-drag: none;
+  user-drag: none;
+}
+
+.starIcon.pop {
+  animation: starPopEarned 420ms cubic-bezier(0.34, 1.56, 0.64, 1) forwards;
+  filter: drop-shadow(0 0 7px rgba(255, 196, 84, 0.75)) drop-shadow(0 0 2px rgba(255, 255, 255, 0.5));
+}
+
+.starIcon.popDim {
+  animation: starPopDim 420ms cubic-bezier(0.34, 1.56, 0.64, 1) forwards;
+  filter: grayscale(1) brightness(0.8);
+}
+
+@keyframes starPopEarned {
+  0% { opacity: 0; transform: scale(0.2) rotate(-18deg); }
+  55% { opacity: 1; transform: scale(1.18) rotate(8deg); }
+  100% { opacity: 1; transform: scale(1) rotate(0deg); }
+}
+
+@keyframes starPopDim {
+  0% { opacity: 0; transform: scale(0.2) rotate(-18deg); }
+  55% { opacity: 0.6; transform: scale(1.12) rotate(8deg); }
+  100% { opacity: 0.42; transform: scale(1) rotate(0deg); }
+}
+
+/* Coin count-up — appears (fades/slides up, reusing .panelHidden) only
+   once the stars have finished landing, see playRewardSequence(). The
+   number itself is ticked by JS (setPanelVisible doesn't touch text
+   content); the icon gets a short springy wobble for the exact duration
+   of the count via .coinSpin, removed once counting stops so it doesn't
+   idle-animate forever after. */
+#coinReward {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  opacity: 0;
+  transform: translateY(8px);
+  transition: opacity 220ms ease, transform 220ms ease;
+}
+
+#coinReward.visible {
+  opacity: 1;
+  transform: translateY(0);
+}
+
+#coinRewardIcon {
+  width: 26px;
+  height: 26px;
+  -webkit-user-drag: none;
+  user-drag: none;
+}
+
+#coinRewardIcon.coinSpin {
+  animation: coinSpinBounce 480ms ease-in-out infinite;
+}
+
+@keyframes coinSpinBounce {
+  0% { transform: scale(1) rotate(0deg); }
+  35% { transform: scale(1.25) rotate(180deg); }
+  70% { transform: scale(0.95) rotate(340deg); }
+  100% { transform: scale(1) rotate(360deg); }
+}
+
+#coinRewardAmount {
+  font-size: 20px;
+  font-weight: 800;
+  color: var(--stencil-accent-dark);
 }
 
 /* ---- Completion burst (inside #artboard, behind the hand) ----
