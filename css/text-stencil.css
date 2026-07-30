@@ -50,15 +50,22 @@
   text-align: center;
 }
 
-/* Persistent coin total — a small unobtrusive corner badge (same
-   "quiet corner" treatment as #muteBtn, just the opposite corner) rather
-   than a headline element, since it's a running total she'll glance at,
-   not the point of this screen. Only ever lives on the picker (this
-   file), updated in place by main.js whenever coins are awarded. */
-#coinBadge {
+/* Row holding the persistent coin total + the story-replay button — a
+   small unobtrusive corner cluster (same "quiet corner" treatment as
+   #muteBtn, just the opposite corner) rather than headline elements,
+   since neither is the point of this screen. Only ever lives on the
+   picker (this file). */
+#pickerTopRow {
   position: absolute;
   top: calc(10px + env(safe-area-inset-top));
   left: calc(10px + env(safe-area-inset-left));
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+/* Updated in place by main.js whenever coins are awarded. */
+#coinBadge {
   display: flex;
   align-items: center;
   gap: 5px;
@@ -93,6 +100,27 @@
   0% { transform: scale(1); }
   35% { transform: scale(1.15); }
   100% { transform: scale(1); }
+}
+
+/* Same pill treatment as #coinBadge (they sit side by side in
+   #pickerTopRow) but as a real button — replays the story intro any
+   time via openStory() in main.js. */
+#storyReplayBtn {
+  font-family: inherit;
+  font-size: 13px;
+  font-weight: 700;
+  color: var(--stencil-accent-dark);
+  border: none;
+  cursor: pointer;
+  padding: 7px 12px;
+  border-radius: 999px;
+  background: rgba(255, 250, 243, 0.75);
+  box-shadow: 0 4px 10px rgba(122, 83, 48, 0.16);
+  transition: transform 120ms ease;
+}
+
+#storyReplayBtn:active {
+  transform: scale(0.94);
 }
 
 /* Boxed panel look — a soft translucent cream card that groups the
