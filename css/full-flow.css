@@ -417,6 +417,20 @@
 .toolBtn.tool-select.active {
   box-shadow: 0 0 0 3px var(--stencil-accent), 0 6px 14px rgba(122, 83, 48, 0.35);
   transform: scale(1.05);
+  /* A little confirming pulse the moment a tool becomes active — plain
+     CSS class toggling in setTool() (main.js) already adds/removes
+     .active cleanly on real changes, so this replays correctly every
+     time without needing a JS-side restart trick. Ends at the same
+     scale(1.05) the static rule above settles on, so there's no visible
+     snap once the animation finishes and .toolBtn's own transition
+     (120ms ease, for the :active press-scale) takes back over. */
+  animation: toolSelectPulse 260ms cubic-bezier(0.34, 1.56, 0.64, 1);
+}
+
+@keyframes toolSelectPulse {
+  0% { transform: scale(1); }
+  50% { transform: scale(1.22); }
+  100% { transform: scale(1.05); }
 }
 
 .toolbarDivider {
@@ -471,10 +485,29 @@
   pointer-events: auto;
   cursor: grab;
   touch-action: none;
+  /* Same pop-in .placedDecor already gets in decoration.css (decorPop) —
+     reused here rather than a new pattern. Lives on this child, not
+     .stampWrap, since .stampWrap's own transform is JS-driven (translate
+     + rotate, positioning the stamp) — animating transform directly on
+     that element would fight the inline style every frame the animation
+     runs. This element only ever gets width/height set by JS, never
+     transform, so animating its own scale here is conflict-free. */
+  animation: stampPop 180ms ease-out;
 }
 
 .stampPreviewCanvas:active {
   cursor: grabbing;
+}
+
+@keyframes stampPop {
+  from {
+    transform: translate(-50%, -50%) scale(0.4);
+    opacity: 0;
+  }
+  to {
+    transform: translate(-50%, -50%) scale(1);
+    opacity: 1;
+  }
 }
 
 .stampHandle {
