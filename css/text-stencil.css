@@ -242,64 +242,7 @@
   opacity: 0.85;
 }
 
-/* ---- Test-harness controls ---- */
-/* Phone portrait: #toolbarPrimary (full-flow.css) now docks as its own
-   fixed bar at the literal bottom edge of the screen, floating above
-   whatever sits underneath in normal flow — including this row, which is
-   an ordinary in-flow flex child of #app. Its own original 16px bottom
-   padding wasn't enough to clear the toolbar's real rendered height
-   (60px: 46px button + 6px/8px top/bottom padding, same number used for
-   #toolbarSecondary's own "sit above the toolbar" offset), so "Change
-   Design" was rendering underneath the fixed toolbar and getting visually
-   covered by it. 76px = that 60px plus the original 16px gap, so the
-   button clears the toolbar with the same breathing room it always had. */
-#controls {
-  flex: 0 0 auto;
-  display: flex;
-  justify-content: center;
-  gap: 12px;
-  padding: 6px 20px calc(76px + env(safe-area-inset-bottom));
-}
-
-/* Tablet portrait: the toolbar becomes two columns flanking the hand
-   instead of a fixed bottom bar (see full-flow.css's min-width media
-   query), so there's nothing here to clear — back to the original,
-   smaller bottom padding. */
-@media (orientation: portrait) and (min-width: 700px) {
-  #controls {
-    padding-bottom: calc(16px + env(safe-area-inset-bottom));
-  }
-}
-
-/* Was previously toggled via a direct style.display swap in main.js —
-   now uses the same fade/slide .hidden+.panelHidden pattern as every
-   other phase panel (see full-flow.css), so it needs the same final
-   "actually removed from layout" state those get. */
-#controls.hidden {
-  display: none;
-}
-
-#controls button {
-  font-family: inherit;
-  font-size: 14px;
-  font-weight: 700;
-  border: none;
-  border-radius: 999px;
-  padding: 12px 22px;
-  cursor: pointer;
-  color: #fff;
-  background: var(--stencil-accent);
-  box-shadow: 0 6px 14px rgba(122, 83, 48, 0.28);
-  transition: transform 120ms ease, opacity 200ms ease, box-shadow 120ms ease;
-}
-
-#controls button:active {
-  transform: scale(0.96);
-  box-shadow: 0 3px 8px rgba(122, 83, 48, 0.28);
-}
-
-#changeBtn {
-  background: transparent;
-  color: var(--stencil-accent-dark);
-  box-shadow: inset 0 0 0 2px rgba(122, 83, 48, 0.35);
-}
+/* #controls/#changeBtn ("Change Design") no longer exist — retired in
+   favor of the single, consistent #backBtn (see style.css), which now
+   also handles "leave tracing" with a confirm-if-she's-drawn-something
+   step Change Design never had. See GAME_SPEC.md §4.11. */
