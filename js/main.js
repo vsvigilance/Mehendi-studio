@@ -1403,19 +1403,28 @@
   }
 
   /* ---------------- Back button + confirmation modal ----------------
-     One shared #backBtn (see its HTML comment) whose meaning depends on
-     context rather than one identical behavior everywhere — deliberately
-     NOT shown on the picker (it's already the app's root/home, nothing
-     to go back to) or during drying/scraping/decorating/done (a
-     one-way completion flow by design — nothing can go wrong there the
-     way it can mid-trace, and backing out would discard a fully-finished
-     piece rather than a few strokes; the existing "New Design" button on
-     the reward screen is already the one designed exit from a finished
-     piece). See GAME_SPEC.md §4.11 for the full reasoning. */
+     One shared #backBtn (see its HTML comment), always visible on every
+     screen (Vinit's explicit call, overriding the original narrower
+     design — see GAME_SPEC.md §4.11 for the full history) — but what
+     tapping it actually DOES still depends on context, not one identical
+     behavior everywhere:
+       - Story slide 1/2: previous slide.
+       - Story slide 0: nothing earlier within the story itself, so this
+         leaves it (same as Skip).
+       - Picker: the only "earlier" screen in the app's own flow is the
+         story intro, so this reopens it (same as #storyReplayBtn).
+       - Tracing: back to the picker — instantly if she hasn't drawn
+         anything real yet, with a confirmation first if she has (see
+         showConfirm() below).
+       - Drying/scraping/decorating: these always represent a real
+         finished-but-not-yet-rewarded trace (there's no "empty" state to
+         reach them from), so always confirm before discarding it.
+       - Done: the reward's already been granted and saved at this point
+         (coins/stars, see the REWARD MOMENT section) — leaving here
+         loses nothing, so this acts exactly like "New Design," no
+         confirmation needed. */
   function updateBackButtonVisibility() {
-    const inStory = !storyIntro.classList.contains('hidden');
-    const show = inStory ? currentStorySlide > 0 : phase === 'tracing';
-    setPanelVisible(backBtn, show);
+    setPanelVisible(backBtn, true);
   }
 
   // Generic — one message, one Cancel, one Confirm, one callback. Only
@@ -1446,9 +1455,15 @@
 
   backBtn.addEventListener('click', () => {
     if (!storyIntro.classList.contains('hidden')) {
-      // Story context: one slide back. Slide 0 already hides this button
-      // (see updateBackButtonVisibility), so currentStorySlide > 0 here.
-      goToSlide(currentStorySlide - 1);
+      if (currentStorySlide > 0) {
+        goToSlide(currentStorySlide - 1);
+      } else {
+        closeStory();
+      }
+      return;
+    }
+    if (phase === 'picking') {
+      openStory();
       return;
     }
     if (phase === 'tracing') {
@@ -1461,6 +1476,14 @@
       } else {
         resetToPicker();
       }
+      return;
+    }
+    if (phase === 'drying' || phase === 'scraping' || phase === 'decorating') {
+      showConfirm('Go back? Your finished design will be lost.', resetToPicker);
+      return;
+    }
+    if (phase === 'done') {
+      resetToPicker(); // reward already granted/saved — nothing left to lose, same as New Design
     }
   });
 
