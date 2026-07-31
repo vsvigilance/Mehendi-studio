@@ -55,8 +55,6 @@
   const pickerCards = document.getElementById('pickerCards');
   const freehandBtn = document.getElementById('freehandBtn');
   const hint = document.getElementById('hint');
-  const changeBtn = document.getElementById('changeBtn');
-  const controls = document.getElementById('controls');
   const dryerControls = document.getElementById('dryerControls');
   const dryerDoneBtn = document.getElementById('dryerDoneBtn');
 
@@ -94,6 +92,11 @@
   const newDesignBtn = document.getElementById('newDesignBtn');
   const completionBurst = document.getElementById('completionBurst');
   const muteBtn = document.getElementById('muteBtn');
+  const backBtn = document.getElementById('backBtn');
+  const confirmDialog = document.getElementById('confirmDialog');
+  const confirmMessage = document.getElementById('confirmMessage');
+  const confirmCancelBtn = document.getElementById('confirmCancelBtn');
+  const confirmOkBtn = document.getElementById('confirmOkBtn');
   const zoomControls = document.getElementById('zoomControls');
   const zoomInBtn = document.getElementById('zoomInBtn');
   const zoomOutBtn = document.getElementById('zoomOutBtn');
@@ -269,6 +272,7 @@
     storySlides.forEach((slide, i) => slide.classList.toggle('active', i === index));
     storyDots.forEach((dot, i) => dot.classList.toggle('active', i === index));
     storyNextBtn.textContent = index === STORY_SLIDE_COUNT - 1 ? "Let's Begin!" : 'Next';
+    updateBackButtonVisibility(); // hidden on slide 0 (nothing to go back to), shown on 1/2
     // Slide 2 (index 1) is the conversation — Jiyana's line pops in the
     // instant the slide becomes active, the shopkeeper's reply follows
     // after a beat rather than both appearing together.
@@ -290,6 +294,7 @@
     clearBubbleTimer();
     storyIntro.classList.add('hidden');
     localStorage.setItem(STORY_SEEN_KEY, '1');
+    updateBackButtonVisibility(); // leaving the story context — re-evaluate against the current phase (picker, so hidden)
   }
 
   storySkipBtn.addEventListener('click', closeStory);
@@ -1356,8 +1361,8 @@
   }
 
   // Cross-phase panel transitions: every bottom control bar (toolbar,
-  // shape tray, change-design controls, dryer controls, decor tray +
-  // controls, finished panel) plus the floating zoom controls used to
+  // shape tray, dryer controls, decor tray + controls, finished panel)
+  // plus the floating zoom controls and #backBtn used to
   // snap in/out via an instant classList.toggle('hidden', ...) — a plain
   // display:none swap, no way to animate that. setPanelVisible() gives
   // each one a quick fade + slight slide instead, so switching phases
@@ -1397,9 +1402,70 @@
     }
   }
 
+  /* ---------------- Back button + confirmation modal ----------------
+     One shared #backBtn (see its HTML comment) whose meaning depends on
+     context rather than one identical behavior everywhere — deliberately
+     NOT shown on the picker (it's already the app's root/home, nothing
+     to go back to) or during drying/scraping/decorating/done (a
+     one-way completion flow by design — nothing can go wrong there the
+     way it can mid-trace, and backing out would discard a fully-finished
+     piece rather than a few strokes; the existing "New Design" button on
+     the reward screen is already the one designed exit from a finished
+     piece). See GAME_SPEC.md §4.11 for the full reasoning. */
+  function updateBackButtonVisibility() {
+    const inStory = !storyIntro.classList.contains('hidden');
+    const show = inStory ? currentStorySlide > 0 : phase === 'tracing';
+    setPanelVisible(backBtn, show);
+  }
+
+  // Generic — one message, one Cancel, one Confirm, one callback. Only
+  // used today for "leave tracing with unsaved strokes," but written
+  // generically since this is the first confirm-style modal in the
+  // codebase (Clear and everything else acts instantly) and a future
+  // "are you sure" moment (e.g. Clear itself) can reuse this as-is
+  // rather than inventing a second dialog pattern.
+  let confirmCallback = null;
+
+  function showConfirm(message, onConfirm) {
+    confirmMessage.textContent = message;
+    confirmCallback = onConfirm;
+    setPanelVisible(confirmDialog, true);
+  }
+
+  function hideConfirm() {
+    confirmCallback = null;
+    setPanelVisible(confirmDialog, false);
+  }
+
+  confirmCancelBtn.addEventListener('click', hideConfirm);
+  confirmOkBtn.addEventListener('click', () => {
+    const cb = confirmCallback;
+    hideConfirm();
+    if (cb) cb();
+  });
+
+  backBtn.addEventListener('click', () => {
+    if (!storyIntro.classList.contains('hidden')) {
+      // Story context: one slide back. Slide 0 already hides this button
+      // (see updateBackButtonVisibility), so currentStorySlide > 0 here.
+      goToSlide(currentStorySlide - 1);
+      return;
+    }
+    if (phase === 'tracing') {
+      // undoStack is the exact same "is there real committed ink to
+      // lose" signal Undo's own disabled state already uses — reusing
+      // it here means a guide she's only moved/resized (not drawn on
+      // yet) leaves silently, matching "if she's already drawn strokes."
+      if (undoStack.length > 0) {
+        showConfirm('Go back? Your progress on this design will be lost.', resetToPicker);
+      } else {
+        resetToPicker();
+      }
+    }
+  });
+
   function updateControlsForPhase() {
-    changeBtn.classList.toggle('hidden', phase !== 'tracing');
-    setPanelVisible(controls, phase === 'tracing');
+    updateBackButtonVisibility();
     setPanelVisible(toolbarPrimary, phase === 'tracing');
     setPanelVisible(toolbarSecondary, phase === 'tracing');
     if (phase !== 'tracing') closeMoreTools(); // leaving tracing always resets the phone drawer closed, so it never reopens stale on the next design
@@ -1507,7 +1573,6 @@
     updateControlsForPhase();
   }
 
-  changeBtn.addEventListener('click', resetToPicker);
   newDesignBtn.addEventListener('click', resetToPicker);
   iconClearBtn.addEventListener('click', clearWetInk);
   iconDoneBtn.addEventListener('click', onDone);
