@@ -159,6 +159,22 @@
   box-shadow: 0 6px 14px rgba(122, 83, 48, 0.14);
   cursor: pointer;
   transition: transform 120ms ease, box-shadow 120ms ease;
+  /* Staggered pop-in, like a deck being dealt — each card's delay is set
+     per-instance in buildPickerCards() (main.js), not hardcoded here via
+     nth-child, so a future 8th/9th design (the DESIGNS array is the
+     documented extension point for new stencil designs) automatically
+     gets a correctly-staggered delay with zero CSS changes. These cards
+     never leave the DOM once built (#picker itself just fades via
+     opacity, see #picker.hidden above), so this animation would only
+     ever play once per page load on its own — playPickerEntrance() in
+     main.js explicitly restarts it every time she actually returns to
+     this screen. */
+  animation: cardPopIn 420ms cubic-bezier(0.22, 1, 0.36, 1) both;
+}
+
+@keyframes cardPopIn {
+  from { opacity: 0; transform: translateY(14px) scale(0.92); }
+  to   { opacity: 1; transform: translateY(0) scale(1); }
 }
 
 .pickerCard:active {
@@ -209,6 +225,11 @@
     url('../assets/draw_now_bg.jpg') center 55% / cover;
   box-shadow: 0 8px 20px rgba(122, 83, 48, 0.22);
   transition: transform 120ms ease, box-shadow 120ms ease;
+  /* Same staggered entrance as .pickerCard above, one beat after the
+     last card — its own delay is also set in JS (buildPickerCards()),
+     right after the loop, so it always lands one step after however
+     many cards actually exist. */
+  animation: cardPopIn 420ms cubic-bezier(0.22, 1, 0.36, 1) both;
 }
 
 #freehandBtn:active {
