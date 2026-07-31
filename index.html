@@ -41,12 +41,12 @@
      date on every future deploy forces every visitor's browser to fetch
      fresh copies instead of reusing old ones — find-and-replace
      "20260730" with the new date across this file when you deploy. -->
-<link rel="stylesheet" href="css/style.css?v=20260730h">
-<link rel="stylesheet" href="css/text-stencil.css?v=20260730h">
-<link rel="stylesheet" href="css/dry-scrape.css?v=20260730h">
-<link rel="stylesheet" href="css/full-flow.css?v=20260730h">
-<link rel="stylesheet" href="css/decoration.css?v=20260730h">
-<link rel="stylesheet" href="css/story.css?v=20260730h">
+<link rel="stylesheet" href="css/style.css?v=20260731a">
+<link rel="stylesheet" href="css/text-stencil.css?v=20260731a">
+<link rel="stylesheet" href="css/dry-scrape.css?v=20260731a">
+<link rel="stylesheet" href="css/full-flow.css?v=20260731a">
+<link rel="stylesheet" href="css/decoration.css?v=20260731a">
+<link rel="stylesheet" href="css/story.css?v=20260731a">
 </head>
 <body>
 
@@ -88,6 +88,39 @@
          whatever she's in the middle of. Remembers her choice next time
          (localStorage) — see js/main.js sound section. -->
     <button id="muteBtn" type="button" aria-label="Toggle sound">🔊</button>
+
+    <!-- One single, persistent Back control — mirrors #muteBtn's corner
+         treatment (opposite side) and, like #muteBtn, lives directly in
+         #app so it can sit above both the story intro and the main game
+         via z-index rather than needing a separate copy in each overlay.
+         What tapping it actually does depends on context (previous story
+         slide vs. return-to-picker-with-confirmation-if-dirty) — see
+         updateBackButtonVisibility() / the click handler in js/main.js.
+         Hidden everywhere it doesn't make sense (picker/home — nothing
+         above it to go back to; drying/scraping/decorating/done — a
+         deliberately one-way completion flow, see GAME_SPEC.md §4.11)
+         via the same fade-then-hide #panelHidden/.hidden pattern as every
+         other contextual control. Starts hidden; JS reveals it once it
+         knows the real starting context (story slide 0 vs. returning
+         straight to the picker). -->
+    <button id="backBtn" class="hidden" type="button" aria-label="Back">←</button>
+
+    <!-- Generic confirmation modal — first of its kind in this codebase
+         (Clear/etc. all act instantly with no prompt). Only ever used
+         today for "leaving tracing with unsaved strokes," but written
+         generically (one message span, one Cancel button, one Confirm
+         button, one JS entry point) so it can be reused later without
+         inventing a second dialog pattern — see showConfirm() in
+         js/main.js. -->
+    <div id="confirmDialog" class="hidden">
+      <div class="confirmCard">
+        <p id="confirmMessage"></p>
+        <div class="confirmActions">
+          <button id="confirmCancelBtn" type="button">Keep Drawing</button>
+          <button id="confirmOkBtn" type="button">Go Back</button>
+        </div>
+      </div>
+    </div>
 
     <!-- 3-slide story intro — sits ON TOP of #picker (higher z-index,
          see css/story.css), shown automatically only the very first time
@@ -404,10 +437,6 @@
       <button id="shapeHollowBtn" class="fillToggleBtn" data-fill="hollow" type="button">Outline</button>
     </div>
 
-    <div id="controls" class="hidden">
-      <button id="changeBtn" type="button">Change Design</button>
-    </div>
-
     <!-- Shown only during the 'drying' phase. The dryer icon itself
          follows her finger/mouse over the hand (see js/main.js) for as
          long as she likes — this button is the one deliberate way to
@@ -501,6 +530,6 @@
   <img id="src-jash" src="assets/text_jash.png" alt="" hidden>
   <img id="src-vine_bloom" src="assets/vine_bloom.png" alt="" hidden>
 
-  <script src="js/main.js?v=20260730h"></script>
+  <script src="js/main.js?v=20260731a"></script>
 </body>
 </html>
