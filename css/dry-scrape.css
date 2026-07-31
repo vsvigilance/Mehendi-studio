@@ -292,42 +292,10 @@
   opacity: 1;
 }
 
-/* ---- Test-harness controls ----
-   #controls' own box layout (flex/display/justify-content/gap/padding) is
-   owned by text-stencil.css, not here — this file originally duplicated
-   it (leftover from dry-scrape.css's own isolated test-harness page,
-   before consolidation into the real game), and because this file loads
-   after text-stencil.css in index.html, its identical-specificity copy
-   was silently winning the cascade and overriding text-stencil.css's own
-   #controls padding — the actual cause of the "Change Design" button
-   being covered by the toolbar (see GAME_SPEC.md §4.3.3). Removed rather
-   than kept in sync, so this landmine can't reappear the next time only
-   one of the two copies gets edited. Button appearance (#controls button
-   and friends, right below) is untouched. */
-#controls button {
-  font-family: inherit;
-  font-size: 14px;
-  font-weight: 700;
-  border: none;
-  border-radius: 999px;
-  padding: 12px 22px;
-  cursor: pointer;
-  color: #fff;
-  background: var(--dry-accent);
-  box-shadow: 0 6px 14px rgba(122, 83, 48, 0.28);
-  transition: transform 120ms ease, opacity 200ms ease, box-shadow 120ms ease;
-}
-
-#controls button:active {
-  transform: scale(0.96);
-  box-shadow: 0 3px 8px rgba(122, 83, 48, 0.28);
-}
-
-#controls button:disabled {
-  opacity: 0.4;
-  cursor: default;
-  box-shadow: none;
-}
+/* #controls/#changeBtn ("Change Design") no longer exist — retired in
+   favor of #backBtn (see style.css). This file's own leftover #controls
+   copy was already removed once (see GAME_SPEC.md §4.3.3 for that story);
+   this second pass removes the rest, since there's nothing left to skin. */
 
 #resetBtn {
   background: transparent;
