@@ -73,6 +73,132 @@ html, body {
   opacity: 1;
 }
 
+/* Mirrors #muteBtn exactly (opposite corner, same size/shape/shadow
+   language) so the two read as a matched pair — see the HTML comment on
+   #backBtn for why this is one shared element instead of a separate copy
+   per screen. Unlike #muteBtn (always visible), this one is shown/hidden
+   via the standard .hidden/.panelHidden fade (see setPanelVisible() in
+   js/main.js) — its own transition covers both that fade AND its own
+   :active press-scale in one declaration, so it doesn't need to opt into
+   the shared multi-element transition list in full-flow.css. */
+#backBtn {
+  position: absolute;
+  top: calc(10px + env(safe-area-inset-top));
+  left: calc(10px + env(safe-area-inset-left));
+  z-index: 20;
+  width: 38px;
+  height: 38px;
+  border: none;
+  border-radius: 50%;
+  font-size: 19px;
+  font-weight: 700;
+  line-height: 1;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  cursor: pointer;
+  color: var(--stencil-accent-dark, #7a5330);
+  background: rgba(255, 250, 243, 0.7);
+  box-shadow: 0 4px 10px rgba(122, 83, 48, 0.18);
+  opacity: 0.75;
+  transition: transform 120ms ease, opacity 200ms ease;
+}
+
+#backBtn:active {
+  transform: scale(0.92);
+  opacity: 1;
+}
+
+#backBtn.hidden {
+  display: none;
+}
+
+/* ---- Confirmation modal ----
+   First of its kind in this codebase (see the HTML comment on
+   #confirmDialog) — a dimmed backdrop plus a centered card, built to
+   match the app's existing pill-button/soft-shadow language rather than
+   a native browser confirm() (which looks jarring against this game's
+   custom look and can behave inconsistently in a home-screen-installed
+   PWA). Shown/hidden via showConfirm()/hideConfirm() in js/main.js —
+   simple opacity fade, no slide, since it's a modal overlay rather than
+   a contextual panel. */
+#confirmDialog {
+  position: fixed;
+  inset: 0;
+  z-index: 30;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 24px;
+  background: rgba(42, 28, 16, 0.45);
+  opacity: 1;
+  transition: opacity 180ms ease;
+}
+
+#confirmDialog.hidden {
+  display: none;
+}
+
+#confirmDialog.panelHidden {
+  opacity: 0;
+}
+
+.confirmCard {
+  width: min(86vw, 340px);
+  background: #fffaf3;
+  border-radius: 20px;
+  padding: 22px 20px 18px;
+  box-shadow: 0 14px 34px rgba(40, 22, 8, 0.32);
+  box-sizing: border-box;
+  text-align: center;
+}
+
+#confirmMessage {
+  margin: 0 0 18px;
+  font-size: 15px;
+  font-weight: 600;
+  line-height: 1.4;
+  color: var(--stencil-accent-dark, #7a5330);
+}
+
+.confirmActions {
+  display: flex;
+  gap: 10px;
+}
+
+.confirmActions button {
+  flex: 1;
+  font-family: inherit;
+  font-size: 14px;
+  font-weight: 700;
+  border: none;
+  border-radius: 999px;
+  padding: 12px 10px;
+  cursor: pointer;
+  transition: transform 120ms ease;
+}
+
+.confirmActions button:active {
+  transform: scale(0.96);
+}
+
+/* "Keep Drawing" — the safe, default-feeling choice, so it gets the
+   quieter outline treatment (same visual language as the old Change
+   Design button it replaces the role of). */
+#confirmCancelBtn {
+  background: transparent;
+  color: var(--stencil-accent-dark, #7a5330);
+  box-shadow: inset 0 0 0 2px rgba(122, 83, 48, 0.35);
+}
+
+/* "Go Back" — the destructive choice, solid-filled so it doesn't read as
+   the default/expected tap. */
+#confirmOkBtn {
+  background: var(--stencil-accent, #a9713f);
+  color: #fff;
+  box-shadow: 0 6px 14px rgba(122, 83, 48, 0.28);
+}
+
 #stageWrap {
   flex: 1 1 auto;
   min-height: 0;
