@@ -295,6 +295,7 @@
     storyIntro.classList.add('hidden');
     localStorage.setItem(STORY_SEEN_KEY, '1');
     updateBackButtonVisibility(); // leaving the story context — re-evaluate against the current phase (picker, so hidden)
+    playPickerEntrance(); // she's now actually seeing the picker for the first time — replay the cards' deal-in
   }
 
   storySkipBtn.addEventListener('click', closeStory);
@@ -501,10 +502,16 @@
   let pendingStars = null;
   let pendingCoins = null;
 
+  // Stagger step for the picker's card entrance (see .pickerCard's
+  // cardPopIn animation in text-stencil.css) — kept here as one shared
+  // constant rather than a magic number repeated in two places.
+  const CARD_ENTRANCE_STAGGER_MS = 45;
+
   function buildPickerCards() {
-    DESIGNS.forEach((design) => {
+    DESIGNS.forEach((design, i) => {
       const card = document.createElement('div');
       card.className = 'pickerCard';
+      card.style.animationDelay = `${i * CARD_ENTRANCE_STAGGER_MS}ms`;
       const thumb = document.createElement('img');
       thumb.src = design.img.src;
       thumb.alt = design.label;
@@ -515,6 +522,31 @@
       card.appendChild(label);
       card.addEventListener('click', () => selectDesign(design));
       pickerCards.appendChild(card);
+    });
+    // Draw Now lands one beat after however many cards actually exist —
+    // computed from DESIGNS.length rather than hardcoded, so adding an
+    // 8th/9th design later still staggers correctly with no CSS/JS
+    // changes needed here.
+    freehandBtn.style.animationDelay = `${DESIGNS.length * CARD_ENTRANCE_STAGGER_MS}ms`;
+  }
+
+  // Cards/Draw Now never leave the DOM once built (#picker itself just
+  // fades via opacity — see #picker.hidden in text-stencil.css), so their
+  // CSS `animation` would only ever play once per page load on its own.
+  // This restarts it (the classic "set animation:none, force a reflow,
+  // clear it" trick, same idea as setPanelVisible()'s reflow nudge just
+  // above) every time she actually lands back on the picker, so the
+  // deal-in feel replays on every visit, not just the first.
+  function playPickerEntrance() {
+    const els = [...pickerCards.children, freehandBtn];
+    els.forEach((el) => {
+      // animationName specifically (not the animation shorthand) — the
+      // shorthand would also reset the per-element animationDelay set in
+      // buildPickerCards() back to 0, silently flattening the stagger
+      // after the very first replay.
+      el.style.animationName = 'none';
+      void el.offsetWidth;
+      el.style.animationName = '';
     });
   }
 
@@ -1594,6 +1626,7 @@
     doseMapCtx.clearRect(0, 0, cssW, cssH);
     setHint('');
     updateControlsForPhase();
+    playPickerEntrance(); // returning to the picker — replay the cards' deal-in each time, not just the first
   }
 
   newDesignBtn.addEventListener('click', resetToPicker);
